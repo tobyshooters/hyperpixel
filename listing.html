@@ -1,0 +1,25 @@
+<style>
+img {
+    width: 500px;
+    height: 500px;
+    object-fit: contain;
+    border: 1px solid black;
+    margin-bottom: 11px;
+}
+</style>
+
+<div id="home" style="display: flex; flex-direction: column"></div>
+
+<script>
+    const paths = {{paths | tojson}};
+    paths.forEach(path => {
+        const label = document.createElement("p");
+        label.innerHTML = path;
+        document.getElementById("home").appendChild(label);
+
+        const output = document.createElement("img");
+        output.src = path;
+        document.getElementById("home").appendChild(output);
+    })
+</script>
+
