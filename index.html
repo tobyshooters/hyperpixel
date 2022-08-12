@@ -1,0 +1,46 @@
+<style>
+img {
+    width: 500px;
+    height: 500px;
+    object-fit: contain;
+    border: 1px solid black;
+}
+</style>
+
+<div style="display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center">
+        <p style="margin-right: 11px">{{user}} {{imageId}}</p>
+        <input id="input" type="file" accept="image/*"></input>
+    </div>
+    <img id="output"></img>
+</div>
+
+<script>
+    // Extract out Jinja variables
+    const user = "{{user}}";
+    const imageId = "{{imageId}}";
+
+    // Attempt to load image from backend directly
+    const output = document.getElementById("output");
+    output.src = `/static/${user}_${imageId}.jpg`
+
+    // Allow uploading the image
+    const input = document.getElementById("input");
+    input.onchange = e => {
+        const fr = new FileReader();
+
+        // Immediately show image on front-end
+        fr.onload = () => output.src = fr.result;
+        fr.readAsDataURL(e.target.files[0]);
+
+        // Persist to back-end so shows up on reload
+        const data = new FormData();
+        data.append('file', e.target.files[0]);
+
+        fetch(`/${user}/${imageId}`, {
+            method: "POST",
+            body: data,
+        })
+    }
+</script>
+
