@@ -1,10 +1,30 @@
 <style>
+body {
+    margin: 20px 40px;
+}
 img {
     width: 100%;
     height: 100%;
     object-fit: contain;
     border: 1px solid black;
     margin-bottom: 11px;
+}
+.bbox-creation {
+    position: absolute;
+    background: rgba(0, 155, 255, 0.5);
+}
+.bbox {
+    position: absolute;
+    background: none;
+}
+.bbox > * {
+    display: none;
+}
+.bbox:hover {
+    border: 1px dashed black;
+}
+.bbox:hover > * {
+    display: block;
 }
 </style>
 
@@ -20,10 +40,14 @@ img {
     const user = "{{user}}";
     const imageId = "{{imageId}}"
 
+    const container = document.createElement("div");
+    container.style.position = "relative";
+    container.style.width = "100%";
+    container.style.height = "100%";
+    document.getElementById("home").appendChild(container);
+
     const output = document.createElement("img");
-    output.onload = () => {
-        document.getElementById("home").appendChild(output);
-    }
+    output.onload = () => container.appendChild(output);
     output.src = `/static/${user}_${imageId}.jpg`;
 
     // Allow uploading the image
@@ -43,5 +67,73 @@ img {
             body: data,
         })
     }
+
+    // Drag selections
+    const mousedown = e => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        let bbox = null;
+        let pos = [];
+
+        const r = e.target.getBoundingClientRect();
+        const x = e.clientX - r.left;
+        const y = e.clientY - r.top;
+        pos.push(x);
+        pos.push(y);
+
+        bbox = document.createElement("a");
+        bbox.classList.add("bbox-creation");
+        bbox.style.left = x;
+        bbox.style.top = y;
+        bbox.style.width = "1px";
+        bbox.style.height = "1px";
+
+        bbox.addEventListener("click", e => {
+            if (e.shiftKey) {
+                bbox.remove();
+                return;
+            }
+        })
+
+        container.appendChild(bbox);
+
+        const mousemove = e => {
+            const r = e.target.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+
+            bbox.style.width = Math.max(x - pos[0], 1) + "px";
+            bbox.style.height = Math.max(y - pos[1], 1) + "px";
+        }
+
+        const mouseup = e => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            bbox.classList.remove("bbox-creation");
+            bbox.classList.add("bbox");
+
+            const linkInput = document.createElement("input");
+            linkInput.type = "text";
+            linkInput.style.width = "100%";
+            linkInput.addEventListener("input", e => {
+                bbox.href = e.target.value;
+            });
+            linkInput.addEventListener("click", e => e.preventDefault());
+            linkInput.addEventListener("mouseup", e => e.stopPropagation());
+            linkInput.addEventListener("mousedown", e => e.stopPropagation());
+            bbox.appendChild(linkInput);
+
+            document.removeEventListener('mousemove', mousemove);
+            document.removeEventListener('mouseup', mouseup);
+        }
+
+        document.addEventListener("mousemove", mousemove);
+        document.addEventListener("mouseup", mouseup);
+    }
+
+    container.addEventListener("mousedown", mousedown);
+
 </script>
 
