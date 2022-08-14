@@ -13,15 +13,16 @@ img {
     position: absolute;
     background: rgba(0, 155, 255, 0.5);
 }
+.bbox-creation > * {
+    display: none;
+}
 .bbox {
     position: absolute;
     background: none;
+    border: 1px dashed black;
 }
 .bbox > * {
     display: none;
-}
-.bbox:hover {
-    border: 1px dashed black;
 }
 .bbox:hover > * {
     display: block;
@@ -39,6 +40,7 @@ img {
     // Extract out Jinja variables
     const user = "{{user}}";
     const imageId = "{{imageId}}"
+    const annotations = {{annotations | tojson}};
 
     const container = document.createElement("div");
     container.style.position = "relative";
@@ -53,7 +55,6 @@ img {
     // Allow uploading the image
     const input = document.getElementById("input");
     input.onchange = e => {
-
         // Immediately show image on front-end
         const fr = new FileReader();
         fr.onload = () => output.src = fr.result;
@@ -68,62 +69,119 @@ img {
         })
     }
 
-    // Drag selections
-    const mousedown = e => {
+    class Annotation {
+        // TODO: responsive positioning
+        constructor(id, x, y, w, h, href) {
+            this.id = id;
+            this.bbox = document.createElement("a");
+            this.setPos(x, y);
+            this.setSize(w, h);
+
+            this.bbox.addEventListener("click", e => {
+                e.stopPropagation();
+                if (e.shiftKey) {
+                    e.preventDefault();
+                    this.bbox.remove();
+
+                    fetch(`/${user}/${imageId}/${this.id}`, {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(null),
+                    })
+                }
+            })
+            this.bbox.addEventListener("mousedown", e => e.stopPropagation());
+
+            this.linkInput = document.createElement("input");
+            this.linkInput.type = "text";
+            this.linkInput.style.width = "100%";
+            this.linkInput.addEventListener("input", e => {
+                // TODO: add https:// by default
+                this.setHref(e.target.value);
+
+                fetch(`/${user}/${imageId}/${this.id}`, {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        x: this.x, 
+                        y: this.y, 
+                        w: this.w, 
+                        h: this.h, 
+                        href: this.href,
+                    }),
+                })
+            });
+            this.linkInput.addEventListener("click", e => e.preventDefault());
+            this.linkInput.addEventListener("mouseup", e => e.stopPropagation());
+            this.linkInput.addEventListener("mousedown", e => e.stopPropagation());
+            this.bbox.appendChild(this.linkInput);
+
+            this.setHref(href);
+        }
+
+        setPos(x, y) {
+            this.x = x;
+            this.y = y;
+            this.bbox.style.left = this.x + "px";
+            this.bbox.style.top = this.y + "px";
+        }
+
+        setSize(w, h) {
+            this.w = w;
+            this.h = h;
+            this.bbox.style.width = this.w + "px";
+            this.bbox.style.height = this.h + "px";
+        }
+
+        setHref(href) {
+            this.href = href;
+            this.bbox.href = href;
+            this.linkInput.value = href;
+        }
+    }
+
+    // Create annotations from database
+    console.log(annotations);
+    for (const [id, {x, y, w, h, href}] of Object.entries(annotations)) {
+        const note = new Annotation(id, x, y, w, h, href);
+        note.bbox.classList.add("bbox");
+        container.appendChild(note.bbox);
+    }
+
+    // Drag to create Annotation
+    const existingIds = Object.keys(annotations).map(k => parseInt(k));
+    let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
+
+    const createAnnotationOnMouseDown = e => {
         e.preventDefault();
         e.stopPropagation();
 
-        let bbox = null;
-        let pos = [];
-
+        nextId += 1;
         const r = e.target.getBoundingClientRect();
         const x = e.clientX - r.left;
         const y = e.clientY - r.top;
-        pos.push(x);
-        pos.push(y);
+        const initPos = [x, y];
 
-        bbox = document.createElement("a");
-        bbox.classList.add("bbox-creation");
-        bbox.style.left = x;
-        bbox.style.top = y;
-        bbox.style.width = "1px";
-        bbox.style.height = "1px";
-
-        bbox.addEventListener("click", e => {
-            if (e.shiftKey) {
-                bbox.remove();
-                return;
-            }
-        })
-
-        container.appendChild(bbox);
+        const note = new Annotation(nextId, x, y, 1, 1, "")
+        note.bbox.classList.add("bbox-creation");
+        container.appendChild(note.bbox);
 
         const mousemove = e => {
             const r = e.target.getBoundingClientRect();
             const x = e.clientX - r.left;
             const y = e.clientY - r.top;
-
-            bbox.style.width = Math.max(x - pos[0], 1) + "px";
-            bbox.style.height = Math.max(y - pos[1], 1) + "px";
+            note.setSize(
+                Math.max(x - initPos[0], 1),
+                Math.max(y - initPos[1], 1),
+            )
         }
 
         const mouseup = e => {
             e.preventDefault();
             e.stopPropagation();
 
-            bbox.classList.remove("bbox-creation");
-            bbox.classList.add("bbox");
-
-            const linkInput = document.createElement("input");
-            linkInput.type = "text";
-            linkInput.style.width = "100%";
-            linkInput.addEventListener("input", e => {
-                bbox.href = e.target.value;
-            });
-            linkInput.addEventListener("click", e => e.preventDefault());
-            linkInput.addEventListener("mouseup", e => e.stopPropagation());
-            linkInput.addEventListener("mousedown", e => e.stopPropagation());
-            bbox.appendChild(linkInput);
+            note.bbox.classList.remove("bbox-creation");
+            note.bbox.classList.add("bbox");
 
             document.removeEventListener('mousemove', mousemove);
             document.removeEventListener('mouseup', mouseup);
@@ -133,7 +191,7 @@ img {
         document.addEventListener("mouseup", mouseup);
     }
 
-    container.addEventListener("mousedown", mousedown);
+    container.addEventListener("mousedown", createAnnotationOnMouseDown);
 
 </script>
 
