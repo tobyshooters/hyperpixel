@@ -11,7 +11,7 @@ app = Flask(__name__, template_folder=".")
 
 @app.route("/")
 def index():
-    return "hyperpixel"
+    return render_template("index.html")
 
 @app.route("/<user>")
 def user(user):
@@ -27,4 +27,3 @@ def user_image(user, image_id):
         return "success", 200
     else:
         return render_template("edit.html", user=user, imageId=image_id)
-

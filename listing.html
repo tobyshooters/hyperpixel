@@ -12,6 +12,8 @@ img {
 
 <script>
     const paths = {{paths | tojson}};
+    const user = "{{user}}";
+
     paths.forEach(path => {
         const label = document.createElement("p");
         label.innerHTML = path;
@@ -19,7 +21,13 @@ img {
 
         const output = document.createElement("img");
         output.src = path;
-        document.getElementById("home").appendChild(output);
+
+        const link = document.createElement("a");
+        const imageId = path.match(/_(.*).jpg/)[1]
+        link.href = `/${user}/${imageId}`;
+        link.appendChild(output);
+
+        document.getElementById("home").appendChild(link);
     })
 </script>
 
