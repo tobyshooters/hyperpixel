@@ -95,11 +95,11 @@ img {
             this.linkInput = document.createElement("input");
             this.linkInput.type = "text";
             this.linkInput.style.width = "100%";
-            this.linkInput.addEventListener("input", e => {
-                // TODO: add https:// by default
-                this.setHref(e.target.value);
+            this.linkInput.addEventListener("change", e => {
+                const parts = e.target.value.match(/(https?:\/\/)(.*)/)
+                const href = parts ? parts[0] : "https://" + e.target.value;
+                this.setHref(href);
 
-                // TODO: make this less frequent to not overrun server
                 fetch(`/${user}/${imageId}/${this.id}`, {
                     method: "POST",
                     headers: { 'Content-Type': 'application/json' },
