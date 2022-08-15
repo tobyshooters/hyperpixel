@@ -181,8 +181,13 @@ img {
             e.preventDefault();
             e.stopPropagation();
 
-            note.bbox.classList.remove("bbox-creation");
-            note.bbox.classList.add("bbox");
+            if (note.w < 10 && note.h < 10) {
+                // Ignore tiny bboxes
+                note.bbox.remove();
+            } else {
+                note.bbox.classList.remove("bbox-creation");
+                note.bbox.classList.add("bbox");
+            }
 
             document.removeEventListener('mousemove', mousemove);
             document.removeEventListener('mouseup', mouseup);

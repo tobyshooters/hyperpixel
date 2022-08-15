@@ -51,7 +51,8 @@ def user_image_annotation(user, image_id, annotation_id):
     if request.json:
         imageAnnotations[(user, image_id)][annotation_id] = request.json
     else:
-        del imageAnnotations[(user, image_id)][annotation_id]
+        if annotation_id in imageAnnotations[(user, image_id)]:
+            del imageAnnotations[(user, image_id)][annotation_id]
 
     with open('./static/annotations.pkl', 'wb') as f:
         pickle.dump(imageAnnotations, f)
