@@ -99,6 +99,7 @@ img {
                 // TODO: add https:// by default
                 this.setHref(e.target.value);
 
+                // TODO: make this less frequent to not overrun server
                 fetch(`/${user}/${imageId}/${this.id}`, {
                     method: "POST",
                     headers: { 'Content-Type': 'application/json' },

@@ -3,7 +3,9 @@ from flask import (
     render_template,
     request
 )
+import os
 import glob
+import pickle
 from PIL import Image
 from collections import defaultdict
 
@@ -29,8 +31,11 @@ def user_image(user, image_id):
         annotations = imageAnnotations[(user, image_id)]
         return render_template("edit.html", user=user, imageId=image_id, annotations=annotations)
 
-# Kept in memory for now
-imageAnnotations = defaultdict(dict)
+if os.path.exists("./static/annotations.pkl"):
+    with open('./static/annotations.pkl', 'rb') as f:
+        imageAnnotations = pickle.load(f)
+else:
+    imageAnnotations = defaultdict(dict)
 
 @app.route("/<user>/<image_id>/<annotation_id>", methods=['POST'])
 def user_image_annotation(user, image_id, annotation_id):
@@ -38,4 +43,8 @@ def user_image_annotation(user, image_id, annotation_id):
         imageAnnotations[(user, image_id)][annotation_id] = request.json
     else:
         del imageAnnotations[(user, image_id)][annotation_id]
+
+    with open('./static/annotations.pkl', 'wb') as f:
+        pickle.dump(imageAnnotations, f)
+
     return "success", 200
