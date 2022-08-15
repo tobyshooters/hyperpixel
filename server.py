@@ -25,7 +25,7 @@ def index():
 
 @app.route("/<user>")
 def user(user):
-    paths = glob.glob(f"./static/{user}_*.jpg")
+    paths = sorted(glob.glob(f"./static/{user}_*.jpg"))
     return render_template("listing.html", user=user, paths=paths)
 
 

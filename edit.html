@@ -71,11 +71,12 @@ img {
 
     class Annotation {
         // TODO: responsive positioning
-        constructor(id, x, y, w, h, href) {
+        constructor(id, x, y, w, h, sw, sh, href) {
             this.id = id;
             this.bbox = document.createElement("a");
             this.setPos(x, y);
             this.setSize(w, h);
+            this.setAnchor(sw, sh);
 
             this.bbox.addEventListener("click", e => {
                 e.stopPropagation();
@@ -96,9 +97,15 @@ img {
             this.linkInput.type = "text";
             this.linkInput.style.width = "100%";
             this.linkInput.addEventListener("change", e => {
-                const parts = e.target.value.match(/(https?:\/\/)(.*)/)
-                const href = parts ? parts[0] : "https://" + e.target.value;
-                this.setHref(href);
+                if (e.target.value[0] == "/") {
+                    // Internal link
+                    this.setHref(e.target.value);
+                } else {
+                    // External link
+                    const parts = e.target.value.match(/(https?:\/\/)(.*)/)
+                    const href = parts ? parts[0] : "https://" + e.target.value;
+                    this.setHref(href);
+                }
 
                 fetch(`/${user}/${imageId}/${this.id}`, {
                     method: "POST",
@@ -139,12 +146,18 @@ img {
             this.bbox.href = href;
             this.linkInput.value = href;
         }
+
+        setAnchor(sw, sh) {
+            this.sw = sw;
+            this.sh = sh;
+        }
     }
 
     // Create annotations from database
     console.log(annotations);
+    const r = container.getBoundingClientRect();
     for (const [id, {x, y, w, h, href}] of Object.entries(annotations)) {
-        const note = new Annotation(id, x, y, w, h, href);
+        const note = new Annotation(id, x, y, w, h, r.width, r.height, href);
         note.bbox.classList.add("bbox");
         container.appendChild(note.bbox);
     }
@@ -163,7 +176,7 @@ img {
         const y = e.clientY - r.top;
         const initPos = [x, y];
 
-        const note = new Annotation(nextId, x, y, 1, 1, "")
+        const note = new Annotation(nextId, x, y, 1, 1, r.width, r.height, "");
         note.bbox.classList.add("bbox-creation");
         container.appendChild(note.bbox);
 
