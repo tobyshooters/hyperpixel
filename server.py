@@ -11,14 +11,23 @@ from collections import defaultdict
 
 app = Flask(__name__, template_folder=".")
 
+if os.path.exists("./static/annotations.pkl"):
+    with open('./static/annotations.pkl', 'rb') as f:
+        imageAnnotations = pickle.load(f)
+else:
+    imageAnnotations = defaultdict(dict)
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
 
 @app.route("/<user>")
 def user(user):
     paths = glob.glob(f"./static/{user}_*.jpg")
     return render_template("listing.html", user=user, paths=paths)
+
 
 @app.route("/<user>/<image_id>", methods=['GET', 'POST'])
 def user_image(user, image_id):
@@ -29,13 +38,13 @@ def user_image(user, image_id):
         return "success", 200
     else:
         annotations = imageAnnotations[(user, image_id)]
-        return render_template("edit.html", user=user, imageId=image_id, annotations=annotations)
+        return render_template(
+            "edit.html",
+            user=user,
+            imageId=image_id,
+            annotations=annotations
+        )
 
-if os.path.exists("./static/annotations.pkl"):
-    with open('./static/annotations.pkl', 'rb') as f:
-        imageAnnotations = pickle.load(f)
-else:
-    imageAnnotations = defaultdict(dict)
 
 @app.route("/<user>/<image_id>/<annotation_id>", methods=['POST'])
 def user_image_annotation(user, image_id, annotation_id):
@@ -48,3 +57,7 @@ def user_image_annotation(user, image_id, annotation_id):
         pickle.dump(imageAnnotations, f)
 
     return "success", 200
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
