@@ -7,7 +7,6 @@ img {
     height: 100%;
     object-fit: contain;
     border: 1px solid black;
-    margin-bottom: 11px;
 }
 .bbox-creation {
     position: absolute;
@@ -34,50 +33,12 @@ img {
         <p style="margin-right: 11px">{{user}} {{imageId}}</p>
         <input id="input" type="file" accept="image/*"></input>
     </div>
+    <div id="container" style="position: relative; width: 100%; height: 100%">
+        <img id="image"></img>
+    </div>
 </div>
 
 <script>
-    // Extract out Jinja variables
-    const user = "{{user}}";
-    const imageId = "{{imageId}}"
-    const annotations = {{annotations | tojson}};
-
-    const container = document.createElement("div");
-    container.style.position = "relative";
-    container.style.width = "100%";
-    container.style.height = "100%";
-    document.getElementById("home").appendChild(container);
-
-    const notes = [];
-    window.addEventListener("resize", () => {
-        const r = container.getBoundingClientRect();
-        notes.forEach(n => n.setAnchor(r.width, r.height));
-    })
-
-    const output = document.createElement("img");
-    output.onload = () => {
-        container.appendChild(output);
-        renderAnnotations();
-    }
-    output.src = `/static/${user}_${imageId}.jpg`;
-
-    // Allow uploading the image
-    const input = document.getElementById("input");
-    input.onchange = e => {
-        // Immediately show image on front-end
-        const fr = new FileReader();
-        fr.onload = () => output.src = fr.result;
-        fr.readAsDataURL(e.target.files[0]);
-
-        // Persist to back-end so shows up on reload
-        const data = new FormData();
-        data.append('file', e.target.files[0]);
-        fetch(`/${user}/${imageId}`, {
-            method: "POST",
-            body: data,
-        })
-    }
-
     class Annotation {
         constructor(id, x, y, w, h, sw, sh, href) {
             this.id = id;
@@ -163,27 +124,55 @@ img {
         }
     }
 
-    const renderAnnotations = () => {
-        // Create annotations from database
+    // Extract out Jinja variables
+    const user = "{{user}}";
+    const imageId = "{{imageId}}"
+    const annotations = {{annotations | tojson}};
+
+    // References to dom
+    const input = document.getElementById("input");
+    const container = document.getElementById("container");
+    const image = document.getElementById("image");
+
+    // Load image from source
+    image.onload = () => renderExistingAnnotations();
+    image.src = `/static/${user}_${imageId}.jpg`;
+
+    // Allow uploading the image
+    input.onchange = e => {
+        // Immediately show image on front-end
+        const fr = new FileReader();
+        fr.onload = () => image.src = fr.result;
+        fr.readAsDataURL(e.target.files[0]);
+
+        // Persist to back-end so shows up on reload
+        const data = new FormData();
+        data.append('file', e.target.files[0]);
+        fetch(`/${user}/${imageId}`, {
+            method: "POST",
+            body: data,
+        })
+    }
+
+    // Handle resizes
+    const notes = [];
+    window.addEventListener("resize", () => {
+        const r = container.getBoundingClientRect();
+        notes.forEach(n => n.setAnchor(r.width, r.height));
+    })
+
+    // Create annotations from database
+    const renderExistingAnnotations = () => {
         const r = container.getBoundingClientRect();
         for (const [id, {x, y, w, h, href}] of Object.entries(annotations)) {
-            const note = new Annotation(
-                id,
-                x,
-                y,
-                w,
-                h,
-                r.width,
-                r.height, 
-                href
-            );
+            const note = new Annotation(id, x, y, w, h, r.width, r.height, href);
             note.bbox.classList.add("bbox");
             container.appendChild(note.bbox);
             notes.push(note);
         }
     }
 
-    // Drag to create Annotation
+    // Annotation creation via mouse-drag
     const existingIds = Object.keys(annotations).map(k => parseInt(k));
     let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
 
