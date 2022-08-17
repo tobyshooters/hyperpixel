@@ -176,44 +176,29 @@ img {
     const existingIds = Object.keys(annotations).map(k => parseInt(k));
     let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
 
-    const createAnnotationOnMouseDown = e => {
+    const dragForAnnotation = e => {
         e.preventDefault();
         e.stopPropagation();
 
         nextId += 1;
         const r = e.target.getBoundingClientRect();
-        const x = e.clientX - r.left;
-        const y = e.clientY - r.top;
-        const initPos = [x, y];
+        const x = (e.clientX - r.left) / r.width;
+        const y = (e.clientY - r.top) / r.height;
 
-        const note = new Annotation(
-            nextId,
-            x / r.width,
-            y / r.height,
-            1 / r.width,
-            1 / r.height,
-            r.width,
-            r.height, 
-            ""
-        );
+        const note = new Annotation(nextId, x, y, 0, 0, r.width, r.height, "");
         note.bbox.classList.add("bbox-creation");
         container.appendChild(note.bbox);
         notes.push(note);
 
         const mousemove = e => {
             const r = e.target.getBoundingClientRect();
-            const x = e.clientX - r.left;
-            const y = e.clientY - r.top;
             note.setSize(
-                Math.max(x - initPos[0], 1) / r.width,
-                Math.max(y - initPos[1], 1) / r.height,
-            )
+                (e.clientX - r.left) / r.width - note.x, 
+                (e.clientY - r.top) / r.height - note.y
+            );
         }
 
         const mouseup = e => {
-            e.preventDefault();
-            e.stopPropagation();
-
             if (note.w < 0.05 && note.h < 0.05) {
                 // Ignore bboxes smaller than 5% of image
                 note.bbox.remove();
@@ -221,16 +206,14 @@ img {
                 note.bbox.classList.remove("bbox-creation");
                 note.bbox.classList.add("bbox");
             }
-
             document.removeEventListener('mousemove', mousemove);
             document.removeEventListener('mouseup', mouseup);
         }
-
         document.addEventListener("mousemove", mousemove);
         document.addEventListener("mouseup", mouseup);
     }
 
-    container.addEventListener("mousedown", createAnnotationOnMouseDown);
+    container.addEventListener("mousedown", dragForAnnotation);
 
 </script>
 
