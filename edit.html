@@ -48,8 +48,17 @@ img {
     container.style.height = "100%";
     document.getElementById("home").appendChild(container);
 
+    const notes = [];
+    window.addEventListener("resize", () => {
+        const r = container.getBoundingClientRect();
+        notes.forEach(n => n.setAnchor(r.width, r.height));
+    })
+
     const output = document.createElement("img");
-    output.onload = () => container.appendChild(output);
+    output.onload = () => {
+        container.appendChild(output);
+        renderAnnotations();
+    }
     output.src = `/static/${user}_${imageId}.jpg`;
 
     // Allow uploading the image
@@ -70,7 +79,6 @@ img {
     }
 
     class Annotation {
-        // TODO: responsive positioning
         constructor(id, x, y, w, h, sw, sh, href) {
             this.id = id;
             this.bbox = document.createElement("a");
@@ -127,18 +135,25 @@ img {
             this.setHref(href);
         }
 
+        setAnchor(sw, sh) {
+            this.sw = sw;
+            this.sh = sh;
+            this.setPos(this.x, this.y);
+            this.setSize(this.w, this.h);
+        }
+
         setPos(x, y) {
             this.x = x;
             this.y = y;
-            this.bbox.style.left = this.x + "px";
-            this.bbox.style.top = this.y + "px";
+            this.bbox.style.left = (this.x * this.sw) + "px";
+            this.bbox.style.top = (this.y * this.sh) + "px";
         }
 
         setSize(w, h) {
             this.w = w;
             this.h = h;
-            this.bbox.style.width = this.w + "px";
-            this.bbox.style.height = this.h + "px";
+            this.bbox.style.width = (this.w * this.sw) + "px";
+            this.bbox.style.height = (this.h * this.sh) + "px";
         }
 
         setHref(href) {
@@ -146,20 +161,26 @@ img {
             this.bbox.href = href;
             this.linkInput.value = href;
         }
-
-        setAnchor(sw, sh) {
-            this.sw = sw;
-            this.sh = sh;
-        }
     }
 
-    // Create annotations from database
-    console.log(annotations);
-    const r = container.getBoundingClientRect();
-    for (const [id, {x, y, w, h, href}] of Object.entries(annotations)) {
-        const note = new Annotation(id, x, y, w, h, r.width, r.height, href);
-        note.bbox.classList.add("bbox");
-        container.appendChild(note.bbox);
+    const renderAnnotations = () => {
+        // Create annotations from database
+        const r = container.getBoundingClientRect();
+        for (const [id, {x, y, w, h, href}] of Object.entries(annotations)) {
+            const note = new Annotation(
+                id,
+                x,
+                y,
+                w,
+                h,
+                r.width,
+                r.height, 
+                href
+            );
+            note.bbox.classList.add("bbox");
+            container.appendChild(note.bbox);
+            notes.push(note);
+        }
     }
 
     // Drag to create Annotation
@@ -176,17 +197,27 @@ img {
         const y = e.clientY - r.top;
         const initPos = [x, y];
 
-        const note = new Annotation(nextId, x, y, 1, 1, r.width, r.height, "");
+        const note = new Annotation(
+            nextId,
+            x / r.width,
+            y / r.height,
+            1 / r.width,
+            1 / r.height,
+            r.width,
+            r.height, 
+            ""
+        );
         note.bbox.classList.add("bbox-creation");
         container.appendChild(note.bbox);
+        notes.push(note);
 
         const mousemove = e => {
             const r = e.target.getBoundingClientRect();
             const x = e.clientX - r.left;
             const y = e.clientY - r.top;
             note.setSize(
-                Math.max(x - initPos[0], 1),
-                Math.max(y - initPos[1], 1),
+                Math.max(x - initPos[0], 1) / r.width,
+                Math.max(y - initPos[1], 1) / r.height,
             )
         }
 
@@ -194,8 +225,8 @@ img {
             e.preventDefault();
             e.stopPropagation();
 
-            if (note.w < 10 && note.h < 10) {
-                // Ignore tiny bboxes
+            if (note.w < 0.05 && note.h < 0.05) {
+                // Ignore bboxes smaller than 5% of image
                 note.bbox.remove();
             } else {
                 note.bbox.classList.remove("bbox-creation");
