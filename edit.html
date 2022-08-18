@@ -30,11 +30,13 @@ img {
 
 <div id="home" style="display: flex; flex-direction: column">
     <div style="display: flex; align-items: center">
-        <p style="margin-right: 11px">{{user}} {{imageId}}</p>
+        <p style="margin-right: 11px">/{{user}}/{{imageId}}</p>
         <input id="input" type="file" accept="image/*"></input>
     </div>
     <div id="container" style="position: relative; width: 100%; height: 100%">
         <img id="image"></img>
+    </div>
+    <div id="backlinks" style="margin-top: 11px">
     </div>
 </div>
 
@@ -128,11 +130,14 @@ img {
     const user = "{{user}}";
     const imageId = "{{imageId}}"
     const annotations = {{annotations | tojson}};
+    const backlinks = {{backlinks | tojson}};
+    console.log(backlinks);
 
     // References to dom
     const input = document.getElementById("input");
     const container = document.getElementById("container");
     const image = document.getElementById("image");
+    const backlinkArea = document.getElementById("backlinks");
 
     // Load image from source
     image.onload = () => renderExistingAnnotations();
@@ -170,6 +175,15 @@ img {
             container.appendChild(note.bbox);
             notes.push(note);
         }
+    }
+
+    // Add backlinks
+    for (const [user, imageId] of backlinks) {
+        const backlink = document.createElement("a");
+        backlink.innerHTML = `/${user}/${imageId}`;
+        backlink.href = `/${user}/${imageId}`;
+        backlink.style.marginRight = "11px";
+        backlinkArea.appendChild(backlink);
     }
 
     // Annotation creation via mouse-drag
