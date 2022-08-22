@@ -26,52 +26,45 @@ else:
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    paths = sorted(glob.glob("./static/*.jpg"))
+    ids = [p.split("/")[-1].split(".")[0] for p in paths]
+    return render_template("listing.html", ids=ids)
 
 
-@app.route("/<user>")
-def user(user):
-    paths = sorted(glob.glob(f"./static/{user}_*.jpg"))
-    return render_template("listing.html", user=user, paths=paths)
-
-
-@app.route("/<user>/<image_id>", methods=['GET', 'POST'])
-def user_image(user, image_id):
+@app.route("/<image_id>", methods=['GET', 'POST'])
+def image(image_id):
     if request.method == 'POST':
         image = request.files.get('file', '')
         image = Image.open(image)
-        image.save(f"./static/{user}_{image_id}.jpg")
+        image.save(f"./static/{image_id}.jpg")
         return "success", 200
     else:
-        annotations = imageAnnotations[(user, image_id)]
-        print(annotations)
-        backlinks = imageBacklinks[(user, image_id)]
-        print(backlinks)
+        annotations = imageAnnotations[image_id]
+        backlinks = imageBacklinks[image_id]
         return render_template(
             "edit.html",
-            user=user,
             imageId=image_id,
             annotations=annotations,
             backlinks=backlinks,
         )
 
 
-@app.route("/<user>/<image_id>/<annotation_id>", methods=['POST'])
-def user_image_annotation(user, image_id, annotation_id):
+@app.route("/<image_id>/<annotation_id>", methods=['POST'])
+def image_annotation(image_id, annotation_id):
     if request.json:
-        imageAnnotations[(user, image_id)][annotation_id] = request.json
+        imageAnnotations[image_id][annotation_id] = request.json
 
         # Internal link! Track the backlinks
         if request.json["href"][0] == "/":
-            [_, _user, _image_id] = request.json["href"].split("/")
-            if os.path.exists(f"./static/{_user}_{_image_id}.jpg"):
-                imageBacklinks[(_user, _image_id)].append((user, image_id))
+            [_, _image_id] = request.json["href"].split("/")
+            if os.path.exists(f"./static/{_image_id}.jpg"):
+                imageBacklinks[_image_id].append(image_id)
 
     else:
-        if annotation_id in imageAnnotations[(user, image_id)]:
-            del imageAnnotations[(user, image_id)][annotation_id]
+        if annotation_id in imageAnnotations[image_id]:
+            del imageAnnotations[image_id][annotation_id]
             for k, v in imageBacklinks.items():
-                imageBacklinks[k] = [x for x in v if x != (user, image_id)]
+                imageBacklinks[k] = [x for x in v if x != image_id]
 
 
     with open('./static/annotations.pkl', 'wb') as f:

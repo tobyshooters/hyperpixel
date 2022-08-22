@@ -11,23 +11,22 @@ img {
 }
 </style>
 
+<a href="/">hyperpixel</a>
 <div id="home" style="display: flex; flex-direction: column"></div>
 
 <script>
-    const paths = {{paths | tojson}};
-    const user = "{{user}}";
+    const imageIds = {{ids | tojson}};
 
-    paths.forEach(path => {
+    imageIds.forEach(imageId => {
         const label = document.createElement("p");
-        label.innerHTML = path;
+        label.innerHTML = `/${imageId}`;
         document.getElementById("home").appendChild(label);
 
         const output = document.createElement("img");
-        output.src = path;
+        output.src = `/static/${imageId}.jpg`;
 
         const link = document.createElement("a");
-        const imageId = path.match(/_(.*).jpg/)[1]
-        link.href = `/${user}/${imageId}`;
+        link.href = `/${imageId}`;
         link.appendChild(output);
 
         document.getElementById("home").appendChild(link);

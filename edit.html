@@ -28,9 +28,10 @@ img {
 }
 </style>
 
+<a href="/">hyperpixel</a>
 <div id="home" style="display: flex; flex-direction: column">
     <div style="display: flex; align-items: center">
-        <p style="margin-right: 11px">/{{user}}/{{imageId}}</p>
+        <p style="margin-right: 11px">/{{imageId}}</p>
         <input id="input" type="file" accept="image/*"></input>
     </div>
     <div id="container" style="position: relative; width: 100%; height: 100%">
@@ -55,7 +56,7 @@ img {
                     e.preventDefault();
                     this.bbox.remove();
 
-                    fetch(`/${user}/${imageId}/${this.id}`, {
+                    fetch(`/${imageId}/${this.id}`, {
                         method: "POST",
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(null),
@@ -78,7 +79,7 @@ img {
                     this.setHref(href);
                 }
 
-                fetch(`/${user}/${imageId}/${this.id}`, {
+                fetch(`/${imageId}/${this.id}`, {
                     method: "POST",
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -127,11 +128,9 @@ img {
     }
 
     // Extract out Jinja variables
-    const user = "{{user}}";
     const imageId = "{{imageId}}"
     const annotations = {{annotations | tojson}};
     const backlinks = {{backlinks | tojson}};
-    console.log(backlinks);
 
     // References to dom
     const input = document.getElementById("input");
@@ -141,7 +140,7 @@ img {
 
     // Load image from source
     image.onload = () => renderExistingAnnotations();
-    image.src = `/static/${user}_${imageId}.jpg`;
+    image.src = `/static/${imageId}.jpg`;
 
     // Allow uploading the image
     input.onchange = e => {
@@ -153,7 +152,7 @@ img {
         // Persist to back-end so shows up on reload
         const data = new FormData();
         data.append('file', e.target.files[0]);
-        fetch(`/${user}/${imageId}`, {
+        fetch(`/${imageId}`, {
             method: "POST",
             body: data,
         })
@@ -178,10 +177,10 @@ img {
     }
 
     // Add backlinks
-    for (const [user, imageId] of backlinks) {
+    for (const imageId of backlinks) {
         const backlink = document.createElement("a");
-        backlink.innerHTML = `/${user}/${imageId}`;
-        backlink.href = `/${user}/${imageId}`;
+        backlink.innerHTML = `/${imageId}`;
+        backlink.href = `/${imageId}`;
         backlink.style.marginRight = "11px";
         backlinkArea.appendChild(backlink);
     }
