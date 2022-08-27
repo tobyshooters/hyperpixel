@@ -15,15 +15,15 @@ img {
 <div id="home" style="display: flex; flex-direction: column"></div>
 
 <script>
-    const imageIds = {{ids | tojson}};
+    const data = {{data | tojson}};
 
-    imageIds.forEach(imageId => {
+    Object.entries(data).forEach(([imageId, path]) => {
         const label = document.createElement("p");
         label.innerHTML = `/${imageId}`;
         document.getElementById("home").appendChild(label);
 
         const output = document.createElement("img");
-        output.src = `/static/${imageId}.jpg`;
+        output.src = path;
 
         const link = document.createElement("a");
         link.href = `/${imageId}`;

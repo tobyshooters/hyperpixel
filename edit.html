@@ -129,8 +129,9 @@ img {
 
     // Extract out Jinja variables
     const imageId = "{{imageId}}"
-    const annotations = {{annotations | tojson}};
-    const backlinks = {{backlinks | tojson}};
+    const data = {{data | tojson}};
+    const annotations = data.annotations;
+    const backlinks = data.backlinks;
 
     // References to dom
     const input = document.getElementById("input");
@@ -140,7 +141,7 @@ img {
 
     // Load image from source
     image.onload = () => renderExistingAnnotations();
-    image.src = `/static/${imageId}.jpg`;
+    image.src = data.path;
 
     // Allow uploading the image
     input.onchange = e => {

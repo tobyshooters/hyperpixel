@@ -4,7 +4,6 @@ from flask import (
     request
 )
 import os
-import glob
 import pickle
 from PIL import Image
 
@@ -38,17 +37,19 @@ else:
 
 @app.route("/")
 def index():
-    paths = sorted(glob.glob("./static/*.jpg"))
-    ids = [p.split("/")[-1].split(".")[0] for p in paths]
-    return render_template("listing.html", ids=ids)
+    data = {
+        k: v["path"]
+        for k, v in db.items()
+    }
+    return render_template("listing.html", data=data)
 
 
 @app.route("/<image_id>", methods=['GET', 'POST'])
 def image(image_id):
     if request.method == 'POST':
-        image = request.files.get('file', '')
-        image = Image.open(image)
-        path = f"./static/{image_id}.jpg"
+        f = request.files.get('file', '')
+        image = Image.open(f)
+        path = f"./static/{f.filename}"
         image.save(path)
 
         db[image_id] = {
@@ -59,18 +60,10 @@ def image(image_id):
 
         return "success", 200
     else:
-        if image_id in db:
-            annotations = db[image_id]["annotations"]
-            backlinks = db[image_id]["backlinks"]
-        else:
-            annotations = []
-            backlinks = []
-
         return render_template(
             "edit.html",
             imageId=image_id,
-            annotations=annotations,
-            backlinks=backlinks,
+            data=db.get(image_id, {}),
         )
 
 
