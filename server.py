@@ -37,10 +37,7 @@ else:
 
 @app.route("/")
 def index():
-    data = {
-        k: v["path"]
-        for k, v in db.items()
-    }
+    data = {k: v["path"] for k, v in db.items()}
     return render_template("listing.html", data=data)
 
 
@@ -58,6 +55,9 @@ def image(image_id):
             "backlinks": []
         }
 
+        with open('./static/db.pkl', 'wb') as f:
+            pickle.dump(db, f)
+
         return "success", 200
     else:
         return render_template(
@@ -74,7 +74,7 @@ def image_annotation(image_id, annotation_id):
 
         # Internal link! Track the backlinks
         if request.json["href"][0] == "/":
-            [_, _image_id] = request.json["href"].split("/")
+            _image_id = request.json["href"].split("/")[1]
 
             if _image_id in db:
                 db[_image_id]["backlinks"].append(image_id)

@@ -130,8 +130,6 @@ img {
     // Extract out Jinja variables
     const imageId = "{{imageId}}"
     const data = {{data | tojson}};
-    const annotations = data.annotations;
-    const backlinks = data.backlinks;
 
     // References to dom
     const input = document.getElementById("input");
@@ -169,7 +167,7 @@ img {
     // Create annotations from database
     const renderExistingAnnotations = () => {
         const r = container.getBoundingClientRect();
-        for (const [id, {x, y, w, h, href}] of Object.entries(annotations)) {
+        for (const [id, {x, y, w, h, href}] of Object.entries(data.annotations)) {
             const note = new Annotation(id, x, y, w, h, r.width, r.height, href);
             note.bbox.classList.add("bbox");
             container.appendChild(note.bbox);
@@ -178,7 +176,7 @@ img {
     }
 
     // Add backlinks
-    for (const imageId of backlinks) {
+    for (const imageId of data.backlinks) {
         const backlink = document.createElement("a");
         backlink.innerHTML = `/${imageId}`;
         backlink.href = `/${imageId}`;
@@ -187,7 +185,7 @@ img {
     }
 
     // Annotation creation via mouse-drag
-    const existingIds = Object.keys(annotations).map(k => parseInt(k));
+    const existingIds = Object.keys(data.annotations).map(k => parseInt(k));
     let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
 
     const dragForAnnotation = e => {
