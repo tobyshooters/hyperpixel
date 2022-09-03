@@ -1,7 +1,7 @@
 from flask import (
     Flask,
     render_template,
-    request
+    request,
 )
 import os
 import pickle
@@ -39,9 +39,16 @@ else:
 
 @app.route("/")
 def index():
-    data = {k: v["path"] for k, v in db.items()}
-    return render_template("listing.html", data=data)
-
+    query = request.args.get('query')
+    if query:
+        data = {
+            k: v["path"] 
+            for k, v in db.items()
+            if query.lower() in v["text"]
+        }
+    else:
+        data = {k: v["path"] for k, v in db.items()}
+    return render_template("listing.html", data=data, query=query)
 
 @app.route("/<image_id>", methods=['GET', 'POST'])
 def image(image_id):
@@ -51,16 +58,20 @@ def image(image_id):
         path = f"./static/{f.filename}"
         image.save(path)
 
+        # Run OCR on image
+        text = ocr(path).lower()
+
         if image_id not in db:
             db[image_id] = {
                 "path": path,
                 "annotations": {},
                 "backlinks": [],
-                "text": ""
+                "text": text
             }
         else:
             # Preserves annotations + backlinks
             db[image_id]["path"] = path
+            db[image_id]["text"] = text
 
         with open('./db.pkl', 'wb') as f:
             pickle.dump(db, f)

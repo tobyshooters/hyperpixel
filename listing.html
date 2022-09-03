@@ -9,13 +9,22 @@ img {
     border: 1px solid black;
     margin-bottom: 11px;
 }
+input {
+    border: 1px solid black;
+    padding: 5px;
+    margin: 0px;
+}
 </style>
 
 <a href="/">hyperpixel</a>
+<div style="margin-top: 10px">
+    <input id="search" type="text" placeholder="Search"></input>
+</div>
 <div id="home" style="display: flex; flex-direction: column"></div>
 
 <script>
     const data = {{data | tojson}};
+    const query = {{query | tojson}};
 
     Object.entries(data).forEach(([imageId, path]) => {
         const label = document.createElement("p");
@@ -30,6 +39,12 @@ img {
         link.appendChild(output);
 
         document.getElementById("home").appendChild(link);
+    })
+
+    const search = document.getElementById("search");
+    search.value = query;
+    search.addEventListener("change", e => {
+        window.location = `/?query=${e.target.value}`;
     })
 </script>
 
