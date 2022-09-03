@@ -2,9 +2,14 @@
 body {
     margin: 20px 40px;
 }
+#container {
+    position: relative;
+    width: 100%;
+    height: auto;
+}
 img {
     width: 100%;
-    height: 100%;
+    height: auto;
     object-fit: contain;
     border: 1px solid black;
 }
@@ -34,7 +39,7 @@ img {
         <p style="margin-right: 11px">/{{imageId}}</p>
         <input id="input" type="file" accept="image/*"></input>
     </div>
-    <div id="container" style="position: relative; width: 100%; height: 100%">
+    <div id="container">
         <img id="image"></img>
     </div>
     <div id="backlinks" style="margin-top: 11px">
@@ -45,6 +50,7 @@ img {
     class Annotation {
         constructor(id, x, y, w, h, sw, sh, href) {
             this.id = id;
+
             this.bbox = document.createElement("a");
             this.setPos(x, y);
             this.setSize(w, h);
@@ -125,6 +131,11 @@ img {
             this.bbox.href = href;
             this.linkInput.value = href;
         }
+
+        delete() {
+          this.linkInput.remove();
+          this.bbox.remove();
+        }
     }
 
     // Extract out Jinja variables
@@ -137,12 +148,19 @@ img {
     const image = document.getElementById("image");
     const backlinkArea = document.getElementById("backlinks");
 
+    // Reference to all annotations
+    let notes = [];
+
     // Load image from source
     image.onload = () => renderExistingAnnotations();
     image.src = data.path;
 
     // Allow uploading the image
     input.onchange = e => {
+        // Clear annotations; They'll be re-rendered
+        notes.forEach(n => n.delete());
+        notes = [];
+
         // Immediately show image on front-end
         const fr = new FileReader();
         fr.onload = () => image.src = fr.result;
@@ -158,7 +176,6 @@ img {
     }
 
     // Handle resizes
-    const notes = [];
     window.addEventListener("resize", () => {
         const r = container.getBoundingClientRect();
         notes.forEach(n => n.setAnchor(r.width, r.height));

@@ -7,6 +7,8 @@ import os
 import pickle
 from PIL import Image
 
+from ocr import ocr
+
 app = Flask(__name__, template_folder=".")
 
 """
@@ -28,8 +30,8 @@ db = {
 }
 
 """
-if os.path.exists("./static/db.pkl"):
-    with open('./static/db.pkl', 'rb') as f:
+if os.path.exists("./db.pkl"):
+    with open('./db.pkl', 'rb') as f:
         db = pickle.load(f)
 else:
     db = {}
@@ -49,13 +51,18 @@ def image(image_id):
         path = f"./static/{f.filename}"
         image.save(path)
 
-        db[image_id] = {
-            "path": path,
-            "annotations": {},
-            "backlinks": []
-        }
+        if image_id not in db:
+            db[image_id] = {
+                "path": path,
+                "annotations": {},
+                "backlinks": [],
+                "text": ""
+            }
+        else:
+            # Preserves annotations + backlinks
+            db[image_id]["path"] = path
 
-        with open('./static/db.pkl', 'wb') as f:
+        with open('./db.pkl', 'wb') as f:
             pickle.dump(db, f)
 
         return "success", 200
@@ -89,7 +96,7 @@ def image_annotation(image_id, annotation_id):
                     if other_id != image_id
                 ]
 
-    with open('./static/db.pkl', 'wb') as f:
+    with open('./db.pkl', 'wb') as f:
         pickle.dump(db, f)
 
     return "success", 200
