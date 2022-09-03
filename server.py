@@ -15,7 +15,8 @@ app = Flask(__name__, template_folder=".")
 db = {
     id: {
         path: string
-        annotations; {
+        text: string
+        annotations: {
             id: {
                 type: "internal" | "external",
                 id || href
