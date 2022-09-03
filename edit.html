@@ -23,7 +23,7 @@ img {
 .bbox {
     position: absolute;
     background: none;
-    border: 1px dashed black;
+    border: 1px dashed dodgerblue;
 }
 .bbox > * {
     display: none;
@@ -31,13 +31,17 @@ img {
 .bbox:hover > * {
     display: block;
 }
+#input {
+  color: transparent;
+  padding: 2px;
+}
 </style>
 
 <a href="/">hyperpixel</a>
 <div id="home" style="display: flex; flex-direction: column">
     <div style="display: flex; align-items: center">
         <p style="margin-right: 11px">/{{imageId}}</p>
-        <input id="input" type="file" accept="image/*"></input>
+        <input id="input" type="file" accept="image/*"/>
     </div>
     <div id="container">
         <img id="image"></img>
