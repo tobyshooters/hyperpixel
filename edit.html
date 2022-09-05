@@ -56,8 +56,11 @@ img {
 
 <script>
     class Annotation {
-        constructor(id, x, y, w, h, sw, sh, href) {
+        constructor(id, imageId, entry, sw, sh ) {
             this.id = id;
+            this.imageId = imageId;
+
+            const { x, y, w, h, href } = entry;
 
             this.bbox = document.createElement("a");
             this.setPos(x, y);
@@ -70,7 +73,7 @@ img {
                     e.preventDefault();
                     this.bbox.remove();
 
-                    fetch(`/${imageId}/${this.id}`, {
+                    fetch(`/${this.imageId}/${this.id}`, {
                         method: "POST",
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(null),
@@ -93,16 +96,10 @@ img {
                     this.setHref(href);
                 }
 
-                fetch(`/${imageId}/${this.id}`, {
+                fetch(`/${this.imageId}/${this.id}`, {
                     method: "POST",
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        x: this.x, 
-                        y: this.y, 
-                        w: this.w, 
-                        h: this.h, 
-                        href: this.href,
-                    }),
+                    body: JSON.stringify(this.getEntry())
                 })
             });
             this.linkInput.addEventListener("click", e => e.preventDefault());
@@ -111,6 +108,16 @@ img {
             this.bbox.appendChild(this.linkInput);
 
             this.setHref(href);
+        }
+
+        getEntry() {
+          return {
+            x: this.x, 
+            y: this.y, 
+            w: this.w, 
+            h: this.h, 
+            href: this.href,
+          }
         }
 
         setAnchor(sw, sh) {
@@ -145,22 +152,19 @@ img {
           this.bbox.remove();
         }
     }
+</script>
 
+<script>
     // Extract out Jinja variables
     const imageId = "{{imageId}}"
     const data = {{data | tojson}};
 
     // References to dom
-    const input = document.getElementById("input");
     const container = document.getElementById("container");
     const image = document.getElementById("image");
 
     // Reference to all annotations
     let notes = [];
-
-    // Load image from source
-    image.onload = () => renderExistingAnnotations();
-    image.src = "files/" + data.path;
 
     const loadImage = (blob) => {
         // Clear annotations; They'll be re-rendered
@@ -169,19 +173,38 @@ img {
 
         // Immediately show image on front-end
         const fr = new FileReader();
-        fr.onload = () => image.src = fr.result;
+        fr.onload = () => {
+          image.src = fr.result;
+        }
         fr.readAsDataURL(blob);
 
         // Persist to back-end so shows up on reload
-        const data = new FormData();
-        data.append('file', blob);
+        const form = new FormData();
+        form.append('file', blob);
         fetch(`/${imageId}`, {
             method: "POST",
-            body: data,
+            body: form,
         })
     }
 
+    const renderAnnotations = (annotations) => {
+        const r = container.getBoundingClientRect();
+        for (const [id, entry] of Object.entries(annotations)) {
+            const note = new Annotation(id, imageId, entry, r.width, r.height);
+            note.bbox.classList.add("bbox");
+            container.appendChild(note.bbox);
+            notes.push(note);
+        }
+    }
+    
+    // Handle resizes
+    window.addEventListener("resize", () => {
+        const r = container.getBoundingClientRect();
+        notes.forEach(n => n.setAnchor(r.width, r.height));
+    })
+
     // Allow uploading the image through input
+    const input = document.getElementById("input");
     input.onchange = e => {
       loadImage(e.target.files[0]);
     }
@@ -211,42 +234,11 @@ img {
         loadImage(e.dataTransfer.files[0])
     });
 
-    // Handle resizes
-    window.addEventListener("resize", () => {
-        const r = container.getBoundingClientRect();
-        notes.forEach(n => n.setAnchor(r.width, r.height));
-    })
-
-    // Create annotations from database
-    const renderExistingAnnotations = () => {
-        const r = container.getBoundingClientRect();
-        for (const [id, {x, y, w, h, href}] of Object.entries(data.annotations)) {
-            const note = new Annotation(id, x, y, w, h, r.width, r.height, href);
-            note.bbox.classList.add("bbox");
-            container.appendChild(note.bbox);
-            notes.push(note);
-        }
-    }
-
-    // Add backlinks
-    const backlinkArea = document.getElementById("backlinks");
-    for (const imageId of data.backlinks) {
-        const backlink = document.createElement("a");
-        backlink.innerHTML = `/${imageId}`;
-        backlink.href = `/${imageId}`;
-        backlink.style.marginRight = "11px";
-        backlinkArea.appendChild(backlink);
-    }
-
-    // Add text
-    const text = document.getElementById("text");
-    text.innerHTML = data["text"];
-
     // Annotation creation via mouse-drag
-    const existingIds = Object.keys(data.annotations).map(k => parseInt(k));
+    const existingIds = Object.keys(data.annotations || {}).map(k => parseInt(k));
     let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
 
-    const dragForAnnotation = e => {
+    const annotate = e => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -255,7 +247,8 @@ img {
         const x = (e.clientX - r.left) / r.width;
         const y = (e.clientY - r.top) / r.height;
 
-        const note = new Annotation(nextId, x, y, 0, 0, r.width, r.height, "");
+        const entry = {x, y, w: 0, h: 0, href: ""}
+        const note = new Annotation(nextId, imageId, entry, r.width, r.height);
         note.bbox.classList.add("bbox-creation");
         container.appendChild(note.bbox);
         notes.push(note);
@@ -283,7 +276,29 @@ img {
         document.addEventListener("mouseup", mouseup);
     }
 
-    container.addEventListener("mousedown", dragForAnnotation);
+    container.addEventListener("mousedown", annotate);
 
+    if (Object.keys(data).length) {
+        image.onload = () => {
+            // Draw annotations
+            renderAnnotations(data.annotations);
+
+            // Add backlinks
+            const backlinkArea = document.getElementById("backlinks");
+            for (const imageId of data.backlinks) {
+                const backlink = document.createElement("a");
+                backlink.innerHTML = `/${imageId}`;
+                backlink.href = `/${imageId}`;
+                backlink.style.marginRight = "11px";
+                backlinkArea.appendChild(backlink);
+            }
+
+            // Add text
+            const text = document.getElementById("text");
+            text.innerHTML = data["text"];
+        }
+        // Load image from source
+        image.src = "files/" + data.path;
+    }
 </script>
 
