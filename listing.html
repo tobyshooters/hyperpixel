@@ -29,7 +29,11 @@ input {
     const data = {{data | tojson}};
     const query = {{query | tojson}};
 
-    Object.entries(data).forEach(([imageId, path]) => {
+    const imageIds = Object.keys(data).sort(() => Math.random() - 0.5)
+
+    imageIds.forEach(imageId => {
+        const path = data[imageId];
+
         const label = document.createElement("p");
         label.innerHTML = `/${imageId}`;
         document.getElementById("home").appendChild(label);

@@ -1,14 +1,16 @@
 import os
 import sys
+import pickle
+import random
+
 from flask import (
     Flask,
     render_template,
     request,
     send_from_directory
 )
-import pickle
-from PIL import Image
 
+from PIL import Image
 from ocr import ocr
 
 if len(sys.argv) == 2:
@@ -84,6 +86,7 @@ def file(filename):
 @app.route("/")
 def index():
     query = request.args.get('query')
+
     if query:
         data = {
             k: os.path.join("files", v["path"] )
