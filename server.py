@@ -60,7 +60,6 @@ def hydrate_db():
 
             text = ocr(dest).lower()
 
-            print(f"Saving {f} at {image_id}")
             db[image_id] = {
                 "path": f,
                 "annotations": {},
@@ -104,7 +103,7 @@ def index():
     return render_template("listing.html", data=data, query=query)
 
 
-@app.route("/<image_id>", methods=['GET', 'POST'])
+@app.route("/<image_id>", methods=['GET', 'POST', 'DELETE'])
 def edit(image_id):
     """
     Since the db is specific to a single directory, when an image is uploaded
@@ -116,6 +115,13 @@ def edit(image_id):
             imageId=image_id,
             data=db.get(image_id, {}),
         )
+
+    elif request.method == 'DELETE':
+        f = db[image_id]["path"]
+        dest = os.path.join(directory, f)
+        os.remove(dest)
+        del db[image_id]
+        return "ok"
 
     else:
         f = request.files.get('file', '')

@@ -32,6 +32,7 @@ img {
     display: block;
 }
 #input {
+  width: 85px;
   color: transparent;
   padding: 2px;
 }
@@ -42,6 +43,7 @@ img {
     <div style="display: flex; align-items: center">
         <p style="margin-right: 11px">/{{imageId}}</p>
         <input id="input" type="file" accept="image/*"/>
+        <button id="delete">Delete</button>
     </div>
     <div id="container">
         <img id="image"></img>
@@ -181,6 +183,13 @@ img {
     // Allow uploading the image through input
     input.onchange = e => {
       loadImage(e.target.files[0]);
+    }
+
+    // Allow deleting the image
+    const del = document.getElementById("delete");
+    del.onclick = async () => {
+        await fetch(`/${imageId}`, { method: "DELETE" });
+        window.location = "/";
     }
 
     // Allow dropping onto container
