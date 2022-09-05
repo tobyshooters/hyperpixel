@@ -64,7 +64,11 @@ input {
         })
     }
 
-    const imageIds = Object.keys(data);
+    const imageIds = Object.keys(data).sort((a, b) => {
+        const _a = a.replace(/[^a-z0-9]/gi,'');
+        const _b = b.replace(/[^a-z0-9]/gi,'');
+        return _a.localeCompare(_b);
+    });
     load(imageIds);
 </script>
 
