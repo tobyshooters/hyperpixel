@@ -20,8 +20,11 @@ input {
 </style>
 
 <a href="/">hyperpixel</a>
-<div style="margin-top: 10px">
+<div style="margin-top: 10px; display: flex; align-items: center;">
     <input id="search" type="text" placeholder="Search"></input>
+    <button id="shuffle" style="margin-left: 10px;">
+        shuffle
+    </button>
 </div>
 <div id="home" style="display: flex; flex-direction: column"></div>
 
@@ -29,29 +32,39 @@ input {
     const data = {{data | tojson}};
     const query = {{query | tojson}};
 
-    const imageIds = Object.keys(data).sort(() => Math.random() - 0.5)
-
-    imageIds.forEach(imageId => {
-        const path = data[imageId];
-
-        const label = document.createElement("p");
-        label.innerHTML = `/${imageId}`;
-        document.getElementById("home").appendChild(label);
-
-        const output = document.createElement("img");
-        output.src = path;
-
-        const link = document.createElement("a");
-        link.href = `/${imageId}`;
-        link.appendChild(output);
-
-        document.getElementById("home").appendChild(link);
-    })
-
     const search = document.getElementById("search");
     search.value = query;
     search.addEventListener("change", e => {
         window.location = `/?query=${e.target.value}`;
     })
+
+    const shuffle = document.getElementById("shuffle");
+    shuffle.onclick = () => {
+        home.innerHTML = "";
+        const imageIds = Object.keys(data).sort(() => Math.random() - 0.5)
+        load(imageIds);
+    }
+
+    const load = (imageIds) => {
+        imageIds.forEach(imageId => {
+            const path = data[imageId];
+
+            const label = document.createElement("p");
+            label.innerHTML = `/${imageId}`;
+            document.getElementById("home").appendChild(label);
+
+            const output = document.createElement("img");
+            output.src = path;
+
+            const link = document.createElement("a");
+            link.href = `/${imageId}`;
+            link.appendChild(output);
+
+            document.getElementById("home").appendChild(link);
+        })
+    }
+
+    const imageIds = Object.keys(data);
+    load(imageIds);
 </script>
 
