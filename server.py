@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 import pickle
 import random
 
@@ -11,7 +12,6 @@ from flask import (
 )
 
 from PIL import Image
-from ocr import ocr
 
 if len(sys.argv) == 2:
     directory = os.path.expanduser(sys.argv[1])
@@ -40,6 +40,12 @@ db = {
 }
 
 """
+
+def ocr(path):
+    path.replace(" ", "\ ")
+    cmd = ["tesseract", path, "stdout"]
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
+    return p.stdout
 
 def hydrate_db():
     """
@@ -119,7 +125,8 @@ def edit(image_id):
     elif request.method == 'DELETE':
         f = db[image_id]["path"]
         dest = os.path.join(directory, f)
-        os.remove(dest)
+        if os.path.exists(dest):
+            os.remove(dest)
         del db[image_id]
         return "ok"
 
@@ -141,7 +148,7 @@ def edit(image_id):
             }
         else:
             # Preserves annotations + backlinks
-            db[image_id]["path"] = path
+            db[image_id]["path"] = f.filename
             db[image_id]["text"] = text
 
         return "success", 200

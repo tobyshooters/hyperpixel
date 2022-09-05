@@ -50,6 +50,8 @@ img {
     </div>
     <div id="backlinks" style="margin-top: 11px">
     </div>
+    <code id="text" style="margin-top: 11px">
+    </code>
 </div>
 
 <script>
@@ -152,7 +154,6 @@ img {
     const input = document.getElementById("input");
     const container = document.getElementById("container");
     const image = document.getElementById("image");
-    const backlinkArea = document.getElementById("backlinks");
 
     // Reference to all annotations
     let notes = [];
@@ -228,6 +229,7 @@ img {
     }
 
     // Add backlinks
+    const backlinkArea = document.getElementById("backlinks");
     for (const imageId of data.backlinks) {
         const backlink = document.createElement("a");
         backlink.innerHTML = `/${imageId}`;
@@ -235,6 +237,10 @@ img {
         backlink.style.marginRight = "11px";
         backlinkArea.appendChild(backlink);
     }
+
+    // Add text
+    const text = document.getElementById("text");
+    text.innerHTML = data["text"];
 
     // Annotation creation via mouse-drag
     const existingIds = Object.keys(data.annotations).map(k => parseInt(k));
