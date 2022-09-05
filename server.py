@@ -1,17 +1,24 @@
+import os
+import sys
 from flask import (
     Flask,
     render_template,
     request,
+    send_from_directory
 )
-import os
 import pickle
 from PIL import Image
 
 from ocr import ocr
 
+if len(sys.argv) == 2:
+    directory = os.path.expanduser(sys.argv[1])
+else:
+    directory = "./static"
+
 app = Flask(__name__, template_folder=".")
 
-"""
+schema = """
 db = {
     id: {
         path: string
@@ -31,11 +38,47 @@ db = {
 }
 
 """
-if os.path.exists("./db.pkl"):
-    with open('./db.pkl', 'rb') as f:
-        db = pickle.load(f)
-else:
-    db = {}
+
+def hydrate_db():
+    """
+    Checks <directory> for files that aren't in db yet.
+    For convenience, sets the image_id to the path without the extension.
+    """
+    existing = [e["path"] for e in db.values()]
+
+    for f in os.listdir(directory):
+        ext = f.split(".")[-1]
+        if ext not in ["jpeg", "jpg", "png"]:
+            continue
+
+        if f not in existing:
+            image_id = f.replace(".", "_").replace(" ", "_")
+            dest = os.path.join(directory, f)
+            print(f"Loading {f} from {dest}")
+
+            text = ocr(dest).lower()
+
+            print(f"Saving {f} at {image_id}")
+            db[image_id] = {
+                "path": f,
+                "annotations": {},
+                "backlinks": [],
+                "text": text,
+            }
+
+
+@app.route("/files/<filename>")
+def file(filename):
+    """
+    We serve static files with the `/files/` prefix.
+    This is to support serving files from an arbitrary <directory>.
+
+    The value of data specifies the endpoint that needs to be hit to serve the
+    file. Thus, if a file is at `{directory}/{f}`, its value is `{files}/{f}`
+
+    Note, the image_id is independent of f.
+    """
+    return send_from_directory(directory, filename)
 
 
 @app.route("/")
@@ -43,28 +86,45 @@ def index():
     query = request.args.get('query')
     if query:
         data = {
-            k: v["path"] 
+            k: os.path.join("files", v["path"] )
             for k, v in db.items()
             if query.lower() in v["text"]
+            or query.lower() in k.lower()
         }
     else:
-        data = {k: v["path"] for k, v in db.items()}
+        data = {
+            k: os.path.join("files", v["path"] )
+            for k, v in db.items()
+        }
+
     return render_template("listing.html", data=data, query=query)
 
+
 @app.route("/<image_id>", methods=['GET', 'POST'])
-def image(image_id):
-    if request.method == 'POST':
+def edit(image_id):
+    """
+    Since the db is specific to a single directory, when an image is uploaded
+    via the interface, we persist it at `{directory}/{f}`.
+    """
+    if request.method == 'GET':
+        return render_template(
+            "edit.html",
+            imageId=image_id,
+            data=db.get(image_id, {}),
+        )
+
+    else:
         f = request.files.get('file', '')
         image = Image.open(f)
-        path = f"./static/{f.filename}"
-        image.save(path)
+        dest = os.path.join(directory, f.filename)
+        image.save(dest)
 
         # Run OCR on image
-        text = ocr(path).lower()
+        text = ocr(dest).lower()
 
         if image_id not in db:
             db[image_id] = {
-                "path": path,
+                "path": f.filename,
                 "annotations": {},
                 "backlinks": [],
                 "text": text
@@ -74,20 +134,11 @@ def image(image_id):
             db[image_id]["path"] = path
             db[image_id]["text"] = text
 
-        with open('./db.pkl', 'wb') as f:
-            pickle.dump(db, f)
-
         return "success", 200
-    else:
-        return render_template(
-            "edit.html",
-            imageId=image_id,
-            data=db.get(image_id, {}),
-        )
 
 
 @app.route("/<image_id>/<annotation_id>", methods=['POST'])
-def image_annotation(image_id, annotation_id):
+def annotate(image_id, annotation_id):
     if request.json:
         db[image_id]["annotations"][annotation_id] = request.json
 
@@ -108,11 +159,26 @@ def image_annotation(image_id, annotation_id):
                     if other_id != image_id
                 ]
 
-    with open('./db.pkl', 'wb') as f:
-        pickle.dump(db, f)
-
     return "success", 200
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    try:
+        # Load database
+        print(f"Running at {directory}")
+        if os.path.exists(f"{directory}/db.pkl"):
+            with open(f"{directory}/db.pkl", "rb") as f:
+                db = pickle.load(f)
+        else:
+            db = {}
+
+        hydrate_db()
+
+        # Run Flask server
+        app.run(debug=True)
+
+    finally:
+        # Save db before quiting
+        print("Peristing db before quiting.")
+        with open(f"{directory}/db.pkl", "wb") as f:
+            pickle.dump(db, f)

@@ -157,7 +157,7 @@ img {
 
     // Load image from source
     image.onload = () => renderExistingAnnotations();
-    image.src = data.path;
+    image.src = "files/" + data.path;
 
     const loadImage = (blob) => {
         // Clear annotations; They'll be re-rendered
