@@ -85,6 +85,7 @@ def file(filename):
 
 @app.route("/")
 def index():
+    hydrate_db()
     query = request.args.get('query')
 
     if query:
@@ -174,8 +175,6 @@ if __name__ == "__main__":
                 db = pickle.load(f)
         else:
             db = {}
-
-        hydrate_db()
 
         # Run Flask server
         app.run(debug=True)
