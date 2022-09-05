@@ -1,8 +1,6 @@
 # hyperpixel
+Everything is an image.
 
-There are only images and regions that link.
-
-Requirements:
-- `flask`
-- `pillow`
-- `tesseract-ocr`
+Install:
+- Pip: `flask`,`pillow`
+- Brew/Apt: `tesseract-ocr`
