@@ -1,0 +1,8 @@
+# hyperpixel
+
+There are only images and regions that link.
+
+Requirements:
+- `flask`
+- `pillow`
+- `tesseract-ocr`
