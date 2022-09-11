@@ -7,11 +7,14 @@ body {
     width: 100%;
     height: auto;
 }
-img {
+#image {
     width: 100%;
     height: auto;
     object-fit: contain;
     border: 1px solid black;
+}
+#container:hover > .bbox {
+    border: 1px dashed dodgerblue;
 }
 .bbox-creation {
     position: absolute;
@@ -23,7 +26,7 @@ img {
 .bbox {
     position: absolute;
     background: none;
-    border: 1px dashed dodgerblue;
+    border: 1px dashed black;
 }
 .bbox > * {
     display: none;
@@ -108,6 +111,7 @@ img {
                     this.setHref(href);
                 }
 
+                // TODO: after updating the annotations, need to re-fetch the links!
                 fetch(`/${this.imageId}/${this.id}`, {
                     method: "POST",
                     headers: { 'Content-Type': 'application/json' },
@@ -127,6 +131,18 @@ img {
             this.bbox.appendChild(this.linkInput);
 
             this.setHref(href);
+
+            if (this.href in links) {
+              this.preview = document.createElement("img");
+              this.preview.src = links[this.href];
+              this.preview.style.position = "absolute";
+              this.preview.style.x = 0;
+              this.preview.style.y = 0;
+              this.preview.style.width = this.w * this.sw;
+              this.preview.style.height = this.h * this.sh - 24;
+              this.preview.style.objectFit = "cover";
+              this.bbox.appendChild(this.preview);
+            }
         }
 
         setAnchor(sw, sh) {
@@ -167,6 +183,7 @@ img {
     // Extract out Jinja variables
     const imageId = "{{imageId}}"
     const data = {{data | tojson}};
+    const links = {{links | tojson}};
 
     // References to dom
     const container = document.getElementById("container");

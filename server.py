@@ -151,10 +151,16 @@ def edit(image_id):
     """
     global db
     if request.method == 'GET':
+        links = {
+            # TODO: slicing off / is weird!
+            a["href"]: os.path.join("files", db[a["href"][1:]]["path"])
+            for a in db[image_id]["annotations"].values()
+        }
         return render_template(
             "edit.html",
             imageId=image_id,
             data=db.get(image_id, {}),
+            links=links,
         )
 
     elif request.method == 'DELETE':
