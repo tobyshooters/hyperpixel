@@ -216,8 +216,9 @@ img {
             "from": imageId,
             "to": e.target.value.slice(1)
           }),
+      }).then(() => {
+        window.location = e.target.value;
       })
-      // window.location = f"/{e.target.value}";
     }
     
     // Handle resizes
