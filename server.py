@@ -1,8 +1,11 @@
 import os
+import json
 import sys
+import signal
 import subprocess
 import pickle
 import random
+import copy
 
 from flask import (
     Flask,
@@ -28,9 +31,9 @@ db = {
         annotations: {
             id: {
                 type: "internal" | "external",
-                id || href
+                href: string,
                 x: float[0, 1],
-                x: float[0, 1],
+                y: float[0, 1],
                 w: float[0, 1],
                 h: float[0, 1],
             }
@@ -47,11 +50,38 @@ def ocr(path):
     p = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
     return p.stdout
 
+
+def move(db, old, new):
+    # Copy over data to new id
+    db[new] = copy.deepcopy(db[old])
+    del db[old]
+
+    # Loop through things that point at old
+    for imageId in db[new]["backlinks"]:
+        for a in db[imageId]["annotations"].values():
+            if a["type"] == "internal" and a["href"][1:] == old:
+                print(f"Moving link at {imageId} from {old} to {new}")
+                a["href"] = "/" + new
+
+    # Loop through things old points at
+    for a in db[new]["annotations"].values():
+        if a["type"] == "internal":
+            print(f"Moving backlink at {a['href']} from {old} to {new}")
+            db[a["href"]]["backlinks"].remove(old)
+            db[a["href"]]["backlinks"].append(new)
+
+    with open(f"{directory}/db.pkl", "wb") as f:
+        pickle.dump(db, f)
+
+    return db
+
+
 def hydrate_db():
     """
     Checks <directory> for files that aren't in db yet.
     For convenience, sets the image_id to the path without the extension.
     """
+    global db
     existing = [e["path"] for e in db.values()]
 
     for f in os.listdir(directory):
@@ -69,9 +99,12 @@ def hydrate_db():
             db[image_id] = {
                 "path": f,
                 "annotations": {},
-                "backlinks": [],
+                "backlinks": [], 
                 "text": text,
             }
+
+    with open(f"{directory}/db.pkl", "wb") as f:
+        pickle.dump(db, f)
 
 
 @app.route("/files/<filename>")
@@ -90,6 +123,7 @@ def file(filename):
 
 @app.route("/")
 def index():
+    global db
     hydrate_db()
     query = request.args.get('query')
 
@@ -115,6 +149,7 @@ def edit(image_id):
     Since the db is specific to a single directory, when an image is uploaded
     via the interface, we persist it at `{directory}/{f}`.
     """
+    global db
     if request.method == 'GET':
         return render_template(
             "edit.html",
@@ -128,6 +163,10 @@ def edit(image_id):
         if os.path.exists(dest):
             os.remove(dest)
         del db[image_id]
+
+        with open(f"{directory}/db.pkl", "wb") as f:
+            pickle.dump(db, f)
+
         return "ok"
 
     else:
@@ -151,11 +190,15 @@ def edit(image_id):
             db[image_id]["path"] = f.filename
             db[image_id]["text"] = text
 
+        with open(f"{directory}/db.pkl", "wb") as f:
+            pickle.dump(db, f)
+
         return "success", 200
 
 
 @app.route("/<image_id>/<annotation_id>", methods=['POST'])
 def annotate(image_id, annotation_id):
+    global db
     if request.json:
         db[image_id]["annotations"][annotation_id] = request.json
 
@@ -176,24 +219,28 @@ def annotate(image_id, annotation_id):
                     if other_id != image_id
                 ]
 
+    with open(f"{directory}/db.pkl", "wb") as f:
+        pickle.dump(db, f)
+
+    return "success", 200
+
+
+@app.route("/rename", methods=['POST'])
+def rename():
+    global db
+    move(db, request.json["from"], request.json["to"])
     return "success", 200
 
 
 if __name__ == "__main__":
-    try:
-        # Load database
-        print(f"Running at {directory}")
-        if os.path.exists(f"{directory}/db.pkl"):
-            with open(f"{directory}/db.pkl", "rb") as f:
-                db = pickle.load(f)
-        else:
-            db = {}
+    # Load database
+    print(f"Running at {directory}")
+    if os.path.exists(f"{directory}/db.pkl"):
+        with open(f"{directory}/db.pkl", "rb") as f:
+            db = pickle.load(f)
+            print(db.keys())
+    else:
+        db = {}
 
-        # Run Flask server
-        app.run(debug=True)
-
-    finally:
-        # Save db before quiting
-        print("Peristing db before quiting.")
-        with open(f"{directory}/db.pkl", "wb") as f:
-            pickle.dump(db, f)
+    # Run Flask server
+    app.run(debug=True)
