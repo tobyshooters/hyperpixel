@@ -111,7 +111,6 @@ body {
                     this.setHref(href);
                 }
 
-                // TODO: after updating the annotations, need to re-fetch the links!
                 fetch(`/${this.imageId}/${this.id}`, {
                     method: "POST",
                     headers: { 'Content-Type': 'application/json' },
@@ -124,6 +123,10 @@ body {
                         h: this.h, 
                     })
                 })
+
+                // After updating the annotations, need to re-fetch the links!
+                // TODO: do this without a reload
+                window.location.reload();
             });
             this.linkInput.addEventListener("click", e => e.preventDefault());
             this.linkInput.addEventListener("mouseup", e => e.stopPropagation());

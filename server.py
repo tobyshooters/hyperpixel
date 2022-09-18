@@ -151,24 +151,42 @@ def edit(image_id):
     """
     global db
     if request.method == 'GET':
-        links = {
-            # TODO: slicing off / is weird!
-            a["href"]: os.path.join("files", db[a["href"][1:]]["path"])
-            for a in db[image_id]["annotations"].values()
-        }
+        data = db.get(image_id, {})
+        if "annotations" in data:
+            links = {
+                # TODO: slicing off / is weird!
+                a["href"]: os.path.join("files", db[a["href"][1:]]["path"])
+                for a in data["annotations"].values()
+                if a["type"] == "internal"
+            }
+        else:
+            links = {}
         return render_template(
             "edit.html",
             imageId=image_id,
-            data=db.get(image_id, {}),
+            data=data,
             links=links,
         )
 
     elif request.method == 'DELETE':
-        f = db[image_id]["path"]
-        dest = os.path.join(directory, f)
-        if os.path.exists(dest):
-            os.remove(dest)
-        del db[image_id]
+        if image_id in db:
+            f = db[image_id]["path"]
+            dest = os.path.join(directory, f)
+            if os.path.exists(dest):
+                os.remove(dest)
+            del db[image_id]
+
+        for entry in db.values():
+            to_delete = []
+            for aId, annotation in entry["annotations"].items():
+                if (
+                    annotation["type"] == "internal" and 
+                    annotation["href"] == "/" + image_id
+                ):
+                    to_delete.append(aId)
+
+            for aId in to_delete:
+                del entry["annotations"][aId]
 
         with open(f"{directory}/db.pkl", "wb") as f:
             pickle.dump(db, f)
