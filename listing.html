@@ -17,6 +17,9 @@ input {
     padding: 5px;
     margin: 0px;
 }
+#home {
+    margin-right: 30px;
+}
 </style>
 
 <a href="/">hyperpixel</a>
@@ -26,7 +29,11 @@ input {
         Shuffle
     </button>
 </div>
-<div id="home" style="display: flex; flex-direction: column"></div>
+
+<div id="rows" style="display: flex; flex-direction: row;">
+    <div id="home" style="display: flex; flex-direction: column"></div>
+    <div id="inbox" style="display: flex; flex-direction: column"></div>
+</div>
 
 <script>
     const data = {{data | tojson}};
@@ -47,11 +54,10 @@ input {
 
     const load = (imageIds) => {
         imageIds.forEach(imageId => {
-            const path = data[imageId];
+            const path = data[imageId]["path"];
 
             const label = document.createElement("p");
             label.innerHTML = `/${imageId}`;
-            document.getElementById("home").appendChild(label);
 
             const output = document.createElement("img");
             output.src = path;
@@ -60,7 +66,13 @@ input {
             link.href = `/${imageId}`;
             link.appendChild(output);
 
-            document.getElementById("home").appendChild(link);
+            if (data[imageId]["type"] === "home") {
+                document.getElementById("home").appendChild(label);
+                document.getElementById("home").appendChild(link);
+            } else {
+                document.getElementById("inbox").appendChild(label);
+                document.getElementById("inbox").appendChild(link);
+            }
         })
     }
 

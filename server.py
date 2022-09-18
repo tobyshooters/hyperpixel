@@ -127,18 +127,14 @@ def index():
     hydrate_db()
     query = request.args.get('query')
 
-    if query:
-        data = {
-            k: os.path.join("files", v["path"] )
-            for k, v in db.items()
-            if query.lower() in v["text"]
-            or query.lower() in k.lower()
-        }
-    else:
-        data = {
-            k: os.path.join("files", v["path"] )
-            for k, v in db.items()
-        }
+    data = {}
+    for k, v in db.items():
+        if not query or query.lower() in v["text"] or query.lower() in k.lower():
+            uses = len(v["annotations"]) + len(v["backlinks"])
+            data[k] = {
+                "type": "home" if uses > 0 else "inbox",
+                "path": os.path.join("files", v["path"] )
+            }
 
     return render_template("listing.html", data=data, query=query)
 
