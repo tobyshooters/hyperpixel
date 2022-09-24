@@ -1,3 +1,5 @@
+<meta charset="UTF-8">
+
 <style>
 body {
     margin: 20px 40px;
@@ -54,7 +56,7 @@ body {
 <a href="/">hyperpixel</a>
 <div id="home" style="display: flex; flex-direction: column">
     <div id="header">
-        <input id="rename" type="text" value="/{{imageId}}" placeholder="Insert name"></input>
+        <input id="rename" type="text" value="/" placeholder="Insert name"></input>
         <input id="file" type="file" accept="image/*"/>
         <button id="delete">Delete</button>
     </div>
@@ -69,133 +71,178 @@ body {
 
 <script>
     class Annotation {
-        constructor(id, imageId, entry, sw, sh ) {
-            this.id = id;
-            this.imageId = imageId;
+      constructor(id, imageId, entry, sw, sh ) {
+        this.id = id;
+        this.imageId = imageId;
 
-            const { x, y, w, h, href } = entry;
+        const { x, y, w, h, to } = entry;
 
-            this.bbox = document.createElement("a");
-            this.setPos(x, y);
-            this.setSize(w, h);
-            this.setAnchor(sw, sh);
+        this.bbox = document.createElement("a");
+        this.setPos(x, y);
+        this.setSize(w, h);
+        this.setAnchor(sw, sh);
 
-            this.bbox.addEventListener("click", e => {
-                e.stopPropagation();
-                if (e.shiftKey) {
-                    e.preventDefault();
-                    this.bbox.remove();
-
-                    fetch(`/${this.imageId}/${this.id}`, {
-                        method: "POST",
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(null),
-                    })
-                }
-            })
-            this.bbox.addEventListener("mousedown", e => e.stopPropagation());
-
-            this.linkInput = document.createElement("input");
-            this.linkInput.type = "text";
-            this.linkInput.style.width = "100%";
-            this.linkInput.addEventListener("change", e => {
-                const isInternal = e.target.value[0] === "/";
-
-                if (isInternal) {
-                    // Internal link
-                    this.setHref(e.target.value);
-                } else {
-                    // External link
-                    const parts = e.target.value.match(/(https?:\/\/)(.*)/)
-                    const href = parts ? parts[0] : "https://" + e.target.value;
-                    this.setHref(href);
-                }
-
-                fetch(`/${this.imageId}/${this.id}`, {
-                    method: "POST",
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: isInternal ? "internal" : "external",
-                        href: this.href,
-                        x: this.x, 
-                        y: this.y, 
-                        w: this.w, 
-                        h: this.h, 
-                    })
-                })
-
-                // After updating the annotations, need to re-fetch the links!
-                // TODO: do this without a reload
-                window.location.reload();
-            });
-            this.linkInput.addEventListener("click", e => e.preventDefault());
-            this.linkInput.addEventListener("mouseup", e => e.stopPropagation());
-            this.linkInput.addEventListener("mousedown", e => e.stopPropagation());
-            this.bbox.appendChild(this.linkInput);
-
-            this.setHref(href);
-
-            if (this.href in links) {
-              this.preview = document.createElement("img");
-              this.preview.src = links[this.href];
-              this.preview.style.position = "absolute";
-              this.preview.style.x = 0;
-              this.preview.style.y = 0;
-              this.preview.style.width = this.w * this.sw;
-              this.preview.style.height = this.h * this.sh - 24;
-              this.preview.style.objectFit = "cover";
-              this.bbox.appendChild(this.preview);
+        this.bbox.addEventListener("click", e => {
+          e.stopPropagation();
+          if (e.shiftKey) {
+            e.preventDefault();
+            if (this.to) {
+              send({
+                op: "DELETE",
+                path: ["annotations", this.id],
+              })
             }
-        }
+            this.bbox.remove();
+          }
+        })
+        this.bbox.addEventListener("mousedown", e => e.stopPropagation());
 
-        setAnchor(sw, sh) {
-            this.sw = sw;
-            this.sh = sh;
-            this.setPos(this.x, this.y);
-            this.setSize(this.w, this.h);
-        }
+        this.linkInput = document.createElement("input");
+        this.linkInput.type = "text";
+        this.linkInput.style.width = "100%";
+        this.linkInput.addEventListener("change", e => {
+          const isInternal = e.target.value[0] === "/";
 
-        setPos(x, y) {
-            this.x = x;
-            this.y = y;
-            this.bbox.style.left = (this.x * this.sw) + "px";
-            this.bbox.style.top = (this.y * this.sh) + "px";
-        }
+          if (isInternal) {
+            this.setTo(e.target.value.slice(1));
+          } else {
+            const parts = e.target.value.match(/(https?:\/\/)(.*)/)
+            const href = parts ? parts[0] : "https://" + e.target.value;
+            this.setTo(href);
+          }
 
-        setSize(w, h) {
-            this.w = w;
-            this.h = h;
-            this.bbox.style.width = (this.w * this.sw) + "px";
-            this.bbox.style.height = (this.h * this.sh) + "px";
-        }
+          send({
+            op: "PUT",
+            path: ["annotations", this.id],
+            data: {
+              type: isInternal ? "internal" : "external",
+              from: this.imageId,
+              to: this.to,
+              x: this.x,
+              y: this.y,
+              w: this.w,
+              h: this.h
+            }
+          })
+        });
 
-        setHref(href) {
-            this.href = href;
-            this.bbox.href = href;
-            this.linkInput.value = href;
-        }
+        this.linkInput.addEventListener("click", e => e.preventDefault());
+        this.linkInput.addEventListener("mouseup", e => e.stopPropagation());
+        this.linkInput.addEventListener("mousedown", e => e.stopPropagation());
+        this.bbox.appendChild(this.linkInput);
 
-        delete() {
-          this.linkInput.remove();
-          this.bbox.remove();
+        this.setTo(to || "");
+
+        if (this.to in db["images"]) {
+          this.preview = document.createElement("img");
+          this.preview.src = "/files/" + db["images"][this.to]["path"];
+          this.preview.style.position = "absolute";
+          this.preview.style.x = 0;
+          this.preview.style.y = 0;
+          this.preview.style.width = this.w * this.sw;
+          this.preview.style.height = this.h * this.sh - 24;
+          this.preview.style.objectFit = "cover";
+          this.bbox.appendChild(this.preview);
         }
+      }
+
+      setAnchor(sw, sh) {
+        this.sw = sw;
+        this.sh = sh;
+        this.setPos(this.x, this.y);
+        this.setSize(this.w, this.h);
+      }
+
+      setPos(x, y) {
+        this.x = x;
+        this.y = y;
+        this.bbox.style.left = (this.x * this.sw) + "px";
+        this.bbox.style.top = (this.y * this.sh) + "px";
+      }
+
+      setSize(w, h) {
+        this.w = w;
+        this.h = h;
+        this.bbox.style.width = (this.w * this.sw) + "px";
+        this.bbox.style.height = (this.h * this.sh) + "px";
+      }
+
+      setTo(to) {
+        this.to = to;
+        if (to.startsWith('http')) {
+          this.bbox.href = to;
+        } else {
+          this.bbox.href = "./" + to;
+        }
+        this.linkInput.value = to;
+      }
+
+      delete() {
+        this.linkInput.remove();
+        this.bbox.remove();
+      }
     }
 </script>
 
 <script>
-    // Extract out Jinja variables
-    const imageId = "{{imageId}}"
-    const data = {{data | tojson}};
-    const links = {{links | tojson}};
+    const defaultDict = () => new Proxy({}, { get: (d, k) => d[k] || 0 });
 
-    // References to dom
-    const container = document.getElementById("container");
-    const image = document.getElementById("image");
+    const imageId = window.location.pathname.slice(1);
+    let db = {}
+    let data = {};
+    let annotations = {};
+    let backlinks = [];
 
-    // Reference to all annotations
-    let notes = [];
+    const ws = new WebSocket("ws://localhost:5000/ws")
+    const send = (msg) => ws.send(JSON.stringify(msg));
 
-    const loadImage = (blob) => {
+    ws.onopen = () => {
+      send({op: "subscribe"});
+    }
+    
+    ws.onmessage = (e) => {
+      db = JSON.parse(e.data);
+      data = db["images"][imageId];
+
+      for (const [a_id, annotation] of Object.entries(db["annotations"])) {
+        if (annotation["from"] == imageId) {
+          annotations[a_id] = annotation;
+        }
+        if (annotation["to"] == imageId) {
+          backlinks.push(annotation["from"]);
+        }
+      }
+
+      render();
+    }
+
+    const render = () => {
+      // References to dom
+      const container = document.getElementById("container");
+      const image = document.getElementById("image");
+
+      // Reference to all annotations
+      let notes = [];
+
+      // Change location of image
+      const rename = document.getElementById("rename");
+      rename.value = imageId;
+      rename.onchange = e => {
+        send({
+          op: "RENAME",
+          path: ["images", imageId],
+          data: e.target.value
+        })
+      }
+      
+      // Handle resizes
+      window.addEventListener("resize", () => {
+        const r = container.getBoundingClientRect();
+        notes.forEach(n => n.setAnchor(r.width, r.height));
+      })
+
+      // Allow uploading the image through input
+      const loadImage = (blob) => {
         // Clear annotations; They'll be re-rendered
         notes.forEach(n => n.delete());
         notes = [];
@@ -210,79 +257,51 @@ body {
         // Persist to back-end so shows up on reload
         const form = new FormData();
         form.append('file', blob);
-        fetch(`/${imageId}`, {
-            method: "POST",
-            body: form,
-        })
-    }
-
-    const renderAnnotations = (annotations) => {
-        const r = container.getBoundingClientRect();
-        for (const [id, entry] of Object.entries(annotations)) {
-            const note = new Annotation(id, imageId, entry, r.width, r.height);
-            note.bbox.classList.add("bbox");
-            container.appendChild(note.bbox);
-            notes.push(note);
-        }
-    }
-
-    // Change location of image
-    const rename = document.getElementById("rename");
-    rename.onchange = e => {
-      fetch("rename", {
+        form.append('image_id', imageId);
+        fetch("/upload", {
           method: "POST",
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            "from": imageId,
-            "to": e.target.value.slice(1)
-          }),
-      }).then(() => {
-        window.location = e.target.value;
-      })
-    }
-    
-    // Handle resizes
-    window.addEventListener("resize", () => {
-        const r = container.getBoundingClientRect();
-        notes.forEach(n => n.setAnchor(r.width, r.height));
-    })
+          body: form,
+        })
+      }
 
-    // Allow uploading the image through input
-    const filepicker = document.getElementById("file");
-    filepicker.onchange = e => {
-      loadImage(e.target.files[0]);
-    }
+      const filepicker = document.getElementById("file");
+      filepicker.onchange = e => {
+        loadImage(e.target.files[0]);
+      }
 
-    // Allow deleting the image
-    const del = document.getElementById("delete");
-    del.onclick = async () => {
-        await fetch(`/${imageId}`, { method: "DELETE" });
+      // Allow dropping onto container
+      container.addEventListener("dragenter", e => {
+          e.preventDefault();
+          image.style.opacity = 0.5;
+      });
+      container.addEventListener("dragover", e => {
+          e.preventDefault();
+      });
+      container.addEventListener("dragleave", e => {
+          e.preventDefault();
+          image.style.opacity = 1.0;
+      });
+      container.addEventListener("drop", e => {
+          e.preventDefault();
+          image.style.opacity = 1.0;
+          loadImage(e.dataTransfer.files[0])
+      });
+
+      // Allow deleting the image
+      const del = document.getElementById("delete");
+      del.onclick = async () => {
+        send({
+          op: "DELETE",
+          path: ["images", imageId],
+        })
         window.location = "/";
-    }
+      }
 
-    // Allow dropping onto container
-    container.addEventListener("dragenter", e => {
-        e.preventDefault();
-        image.style.opacity = 0.5;
-    });
-    container.addEventListener("dragover", e => {
-        e.preventDefault();
-    });
-    container.addEventListener("dragleave", e => {
-        e.preventDefault();
-        image.style.opacity = 1.0;
-    });
-    container.addEventListener("drop", e => {
-        e.preventDefault();
-        image.style.opacity = 1.0;
-        loadImage(e.dataTransfer.files[0])
-    });
+      // Annotation creation via mouse-drag
+      const existingIds = Object.keys(annotations || {}).map(k => parseInt(k));
+      let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
 
-    // Annotation creation via mouse-drag
-    const existingIds = Object.keys(data.annotations || {}).map(k => parseInt(k));
-    let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
-
-    const annotate = e => {
+      container.addEventListener("mousedown", e => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -298,51 +317,58 @@ body {
         notes.push(note);
 
         const mousemove = e => {
-            const r = e.target.getBoundingClientRect();
-            note.setSize(
-                (e.clientX - r.left) / r.width - note.x, 
-                (e.clientY - r.top) / r.height - note.y
-            );
+          const r = e.target.getBoundingClientRect();
+          note.setSize(
+            (e.clientX - r.left) / r.width - note.x, 
+            (e.clientY - r.top) / r.height - note.y
+          );
         }
 
         const mouseup = e => {
-            if (note.w < 0.05 && note.h < 0.05) {
-                // Ignore bboxes smaller than 5% of image
-                note.bbox.remove();
-            } else {
-                note.bbox.classList.remove("bbox-creation");
-                note.bbox.classList.add("bbox");
-            }
-            document.removeEventListener('mousemove', mousemove);
-            document.removeEventListener('mouseup', mouseup);
+          if (note.w < 0.05 && note.h < 0.05) {
+            // Ignore bboxes smaller than 5% of image
+            note.bbox.remove();
+          } else {
+            note.bbox.classList.remove("bbox-creation");
+            note.bbox.classList.add("bbox");
+          }
+          document.removeEventListener('mousemove', mousemove);
+          document.removeEventListener('mouseup', mouseup);
         }
+
         document.addEventListener("mousemove", mousemove);
         document.addEventListener("mouseup", mouseup);
-    }
+      });
 
-    container.addEventListener("mousedown", annotate);
-
-    if (Object.keys(data).length) {
+      if (data) {
         image.onload = () => {
-            // Draw annotations
-            renderAnnotations(data.annotations);
+          // Draw annotations
+          const r = container.getBoundingClientRect();
+          for (const [a_id, annotation] of Object.entries(annotations)) {
+            const note = new Annotation(a_id, imageId, annotation, r.width, r.height);
+            note.bbox.classList.add("bbox");
+            container.appendChild(note.bbox);
+            notes.push(note);
+          }
 
-            // Add backlinks
-            const backlinkArea = document.getElementById("backlinks");
-            for (const imageId of data.backlinks) {
-                const backlink = document.createElement("a");
-                backlink.innerHTML = `/${imageId}`;
-                backlink.href = `/${imageId}`;
-                backlink.style.marginRight = "11px";
-                backlinkArea.appendChild(backlink);
-            }
+          // Add backlinks
+          const backlinkArea = document.getElementById("backlinks");
+          for (const imageId of backlinks) {
+            const backlink = document.createElement("a");
+            backlink.innerHTML = `/${imageId}`;
+            backlink.href = `/${imageId}`;
+            backlink.style.marginRight = "11px";
+            backlinkArea.appendChild(backlink);
+          }
 
-            // Add text
-            const text = document.getElementById("text");
-            text.innerHTML = data["text"];
+          // Add text
+          const text = document.getElementById("text");
+          text.innerHTML = data["text"];
         }
-        // Load image from source
-        image.src = "files/" + data.path;
+
+        const path = data["path"];
+        image.src = `/files/${path}`;
+      }
     }
 </script>
 

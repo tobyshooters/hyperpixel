@@ -6,47 +6,12 @@ import subprocess
 import json
 import random
 import copy
-
-from flask import (
-    Flask,
-    render_template,
-    request,
-    send_from_directory
-)
-
+import io
 from PIL import Image
 
-if len(sys.argv) == 2:
-    directory = os.path.expanduser(sys.argv[1])
-else:
-    directory = "./static"
-
-app = Flask(__name__, template_folder=".")
-
-schema = """
-db = {
-    id: {
-        path: string
-        text: string
-        annotations: {
-            id: {
-                type: "internal" | "external",
-                href: string,
-                x: float[0, 1],
-                y: float[0, 1],
-                w: float[0, 1],
-                h: float[0, 1],
-            }
-        }
-        backlinks: [ id: string ]
-    }
-}
-
-"""
-
-def save_db(db):
-    with open(f"{directory}/db.json", "w") as f:
-        json.dump(db, f, indent=2)
+import tornado.ioloop
+import tornado.web
+import tornado.websocket
 
 def ocr(path):
     path.replace(" ", "\ ")
@@ -55,211 +20,196 @@ def ocr(path):
     return p.stdout
 
 
-def move(db, old, new):
-    # Copy over data to new id
-    db[new] = copy.deepcopy(db[old])
-    del db[old]
-
-    # Loop through things that point at old
-    for imageId in db[new]["backlinks"]:
-        for a in db[imageId]["annotations"].values():
-            if a["type"] == "internal" and a["href"][1:] == old:
-                print(f"Moving link at {imageId} from {old} to {new}")
-                a["href"] = "/" + new
-
-    # Loop through things old points at
-    for a in db[new]["annotations"].values():
-        if a["type"] == "internal":
-            print(f"Moving backlink at {a['href']} from {old} to {new}")
-            db[a["href"]]["backlinks"].remove(old)
-            db[a["href"]]["backlinks"].append(new)
-
-    save_db(db)
-
-    return db
-
-
-def hydrate_db():
+class DB:
     """
-    Checks <directory> for files that aren't in db yet.
-    For convenience, sets the image_id to the path without the extension.
-    """
-    global db
-    existing = [e["path"] for e in db.values()]
-
-    for f in os.listdir(directory):
-        ext = f.split(".")[-1]
-        if ext not in ["jpeg", "jpg", "png"]:
-            continue
-
-        if f not in existing:
-            image_id = f.replace(".", "_").replace(" ", "_")
-            dest = os.path.join(directory, f)
-            print(f"Loading {f} from {dest}")
-
-            text = ocr(dest).lower()
-
-            db[image_id] = {
-                "path": f,
-                "annotations": {},
-                "backlinks": [], 
-                "text": text,
+    db = {
+        images: {
+            id: {
+                path: string
+                text: string
             }
+        }
+        annotations: {
+            id: {
+                type: "internal" | "external",
+                from: image_id,
+                to: image_id | href,
 
-    save_db(db)
-
-
-@app.route("/files/<filename>")
-def file(filename):
-    """
-    We serve static files with the `/files/` prefix.
-    This is to support serving files from an arbitrary <directory>.
-
-    The value of data specifies the endpoint that needs to be hit to serve the
-    file. Thus, if a file is at `{directory}/{f}`, its value is `{files}/{f}`
-
-    Note, the image_id is independent of f.
-    """
-    return send_from_directory(directory, filename)
-
-
-@app.route("/")
-def index():
-    global db
-    hydrate_db()
-    query = request.args.get('query')
-
-    data = {}
-    for k, v in db.items():
-        if not query or query.lower() in v["text"] or query.lower() in k.lower():
-            uses = len(v["annotations"]) + len(v["backlinks"])
-            data[k] = {
-                "type": "home" if uses > 0 else "inbox",
-                "path": os.path.join("files", v["path"] )
+                x: float[0, 1],
+                y: float[0, 1],
+                w: float[0, 1],
+                h: float[0, 1],
             }
-
-    return render_template("listing.html", data=data, query=query)
-
-
-@app.route("/<image_id>", methods=['GET', 'POST', 'DELETE'])
-def edit(image_id):
+        }
+    }
     """
-    Since the db is specific to a single directory, when an image is uploaded
-    via the interface, we persist it at `{directory}/{f}`.
-    """
-    global db
-    if request.method == 'GET':
-        data = db.get(image_id, {})
-        if "annotations" in data:
-            links = {
-                # TODO: slicing off / is weird!
-                a["href"]: os.path.join("files", db[a["href"][1:]]["path"])
-                for a in data["annotations"].values()
-                if a["type"] == "internal"
-            }
+
+    def __init__(self, directory):
+        self.directory = directory
+        self.path = f"{directory}/db.json"
+
+        if os.path.exists(self.path):
+            with open(self.path, "r") as f:
+                self.db = json.load(f)
         else:
-            links = {}
-        return render_template(
-            "edit.html",
-            imageId=image_id,
-            data=data,
-            links=links,
-        )
+            self.db = {
+                "images": {},
+                "annotations": {}
+            }
 
-    elif request.method == 'DELETE':
-        if image_id in db:
-            f = db[image_id]["path"]
-            dest = os.path.join(directory, f)
-            if os.path.exists(dest):
-                os.remove(dest)
-            del db[image_id]
+        self.hydrate()
 
-        for entry in db.values():
-            to_delete = []
-            for aId, annotation in entry["annotations"].items():
-                if (
-                    annotation["type"] == "internal" and 
-                    annotation["href"] == "/" + image_id
-                ):
-                    to_delete.append(aId)
 
-            for aId in to_delete:
-                del entry["annotations"][aId]
+    def persist(self):
+        with open(f"{directory}/db.json", "w") as f:
+            json.dump(self.db, f, indent=2)
 
-        save_db(db)
 
-        return "ok"
+    def hydrate(self):
+        existing_images = [
+            data["path"]
+            for data in self.db["images"].values()
+        ]
 
-    else:
-        f = request.files.get('file', '')
-        image = Image.open(f)
-        dest = os.path.join(directory, f.filename)
-        image.save(dest)
+        files_in_directory = os.listdir(self.directory)
 
-        # Run OCR on image
+        # Clean up images removed from file system
+        to_delete = []
+        for image_id, data in self.db["images"].items():
+            if data["path"] not in files_in_directory:
+                to_delete.append(image_id)
+
+        for image_id in to_delete:
+            del self.db["images"][image_id]
+
+        # Load new images in the filesystem
+        for f in files_in_directory:
+            ext = f.split(".")[-1]
+            if ext.lower() not in ["jpeg", "jpg", "png"]:
+                continue
+
+            if f not in existing_images:
+                image_id = f.replace(".", "_").replace(" ", "_")
+                dest = os.path.join(self.directory, f)
+                print(f"Loading {f} from {dest}")
+
+                text = ocr(dest).lower()
+
+                self.db["images"][image_id] = {
+                    "path": f,
+                    "text": text,
+                }
+
+        self.persist()
+
+
+    def op(self, op, path, data):
+        if op == "PUT":
+            location = self.db
+            for i in range(len(path) - 1):
+                location = location[path[i]]
+
+            location[path[-1]] = data
+
+        if op == "DELETE":
+            location = self.db
+            for i in range(len(path) - 1):
+                location = location[path[i]]
+
+            if path[0] == "images":
+                f = location[path[-1]]["path"]
+                os.remove(os.path.join(self.directory, f))
+
+            del location[path[-1]]
+
+        if op == "RENAME":
+            old_image_id = path[-1]
+            new_image_id = data
+            self.rename(old_image_id, new_image_id)
+
+        self.persist()
+
+
+    def rename(self, old_image_id, new_image_id):
+        dup = copy.deepcopy(self.db["images"][old_image_id])
+        self.db["images"][new_image_id] = dup
+
+        del self.db["images"][old_image_id]
+
+        for a_id, annotation in self.db["annotations"].items():
+
+            if annotation["from"] == old_image_id:
+                annotation["from"] = new_image_id
+
+            if annotation["to"] == old_image_id:
+                annotation["to"] = new_image_id
+
+        self.persist()
+
+
+
+if len(sys.argv) == 2:
+    directory = os.path.expanduser(sys.argv[1])
+else:
+    directory = "./static"
+
+db = DB(directory)
+
+
+class IndexHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render("listing.html")
+
+
+class EditHandler(tornado.web.RequestHandler):
+    def get(self, image_id):
+        self.render("edit.html")
+
+
+class UploadHandler(tornado.web.RequestHandler):
+    def post(self):
+        image_id = self.get_argument("image_id")
+        f = self.request.files.get('file', '')[0]
+
+        dest = os.path.join(directory, f["filename"])
+        with open(dest, "wb") as image:
+            image.write(f["body"])
+
         text = ocr(dest).lower()
 
-        if image_id not in db:
-            db[image_id] = {
-                "path": f.filename,
-                "annotations": {},
-                "backlinks": [],
-                "text": text
-            }
+        db.op("PUT", ["images", image_id], {
+            "path": f["filename"],
+            "text": text,
+        })
+
+        self.write("ok")
+
+
+class WSHandler(tornado.websocket.WebSocketHandler):
+    def on_message(self, message):
+        message = json.loads(message)
+
+        print(message)
+
+        if message["op"] == "subscribe":
+            self.write_message(json.dumps(db.db))
+
         else:
-            # Preserves annotations + backlinks
-            db[image_id]["path"] = f.filename
-            db[image_id]["text"] = text
-
-        save_db(db)
-
-        return "success", 200
-
-
-@app.route("/<image_id>/<annotation_id>", methods=['POST'])
-def annotate(image_id, annotation_id):
-    global db
-    if request.json:
-        db[image_id]["annotations"][annotation_id] = request.json
-
-        # Internal link! Track the backlinks
-        if request.json["href"][0] == "/":
-            _image_id = request.json["href"].split("/")[1]
-
-            if _image_id in db:
-                db[_image_id]["backlinks"].append(image_id)
-
-    else:
-        if annotation_id in db[image_id]["annotations"]:
-            del db[image_id]["annotations"][annotation_id]
-            for entry in db.values():
-                entry["backlinks"] = [
-                    other_id
-                    for other_id in entry["backlinks"]
-                    if other_id != image_id
-                ]
-
-    save_db(db)
-
-    return "success", 200
-
-
-@app.route("/rename", methods=['POST'])
-def rename():
-    global db
-    move(db, request.json["from"], request.json["to"])
-    return "success", 200
+            data = message["data"] if "data" in message  else None
+            db.op(message["op"], message["path"], data)
 
 
 if __name__ == "__main__":
-    # Load database
-    print(f"Running at {directory}")
-    if os.path.exists(f"{directory}/db.json"):
-        with open(f"{directory}/db.json", "r") as f:
-            db = json.load(f)
-            print(db.keys())
-    else:
-        db = {}
+    app = tornado.web.Application([
+        (r'/files/(.*)', tornado.web.StaticFileHandler, {
+            "path": directory 
+        }),
+        (r'/ws', WSHandler),
+        (r'/upload', UploadHandler),
+        (r'/', IndexHandler),
+        (r'/(.*)', EditHandler),
+    ], debug=True)
 
-    # Run Flask server
-    app.run(debug=True)
+    app.listen(5000)
+    tornado.ioloop.IOLoop.current().start()
+

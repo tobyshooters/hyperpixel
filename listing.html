@@ -1,3 +1,5 @@
+<meta charset="UTF-8">
+
 <style>
 body {
     margin: 20px 40px;
@@ -36,51 +38,77 @@ input {
 </div>
 
 <script>
-    const data = {{data | tojson}};
-    const query = {{query | tojson}};
+    const defaultDict = () => new Proxy({}, { get: (d, k) => d[k] || 0 });
 
-    const search = document.getElementById("search");
-    search.value = query;
-    search.addEventListener("change", e => {
-        window.location = `/?query=${e.target.value}`;
-    })
+    let db = {};
+    let num_annotations = defaultDict();
+    let query = "";
 
-    const shuffle = document.getElementById("shuffle");
-    shuffle.onclick = () => {
-        home.innerHTML = "";
-        const imageIds = Object.keys(data).sort(() => Math.random() - 0.5)
-        load(imageIds);
+    const ws = new WebSocket("ws://localhost:5000/ws")
+    const send = (msg) =>ws.send(JSON.stringify(msg));
+
+    ws.onopen = () => {
+      send({"op": "subscribe"});
+    }
+    
+    ws.onmessage = (e) => {
+      db = JSON.parse(e.data);
+
+      num_annotations = defaultDict();
+      for (const annotation of Object.values(db["annotations"])) {
+        num_annotations[annotation["to"]] += 1;
+        num_annotations[annotation["from"]] += 1;
+      }
+
+      render();
     }
 
     const load = (imageIds) => {
-        imageIds.forEach(imageId => {
-            const path = data[imageId]["path"];
+      imageIds.forEach(imageId => {
+        const path = db["images"][imageId]["path"];
 
-            const label = document.createElement("p");
-            label.innerHTML = `/${imageId}`;
+        const label = document.createElement("p");
+        label.innerHTML = `/${imageId}`;
 
-            const output = document.createElement("img");
-            output.src = path;
+        const output = document.createElement("img");
+        output.src = `/files/${path}`;
 
-            const link = document.createElement("a");
-            link.href = `/${imageId}`;
-            link.appendChild(output);
+        const link = document.createElement("a");
+        link.href = `/${imageId}`;
+        link.appendChild(output);
 
-            if (data[imageId]["type"] === "home") {
-                document.getElementById("home").appendChild(label);
-                document.getElementById("home").appendChild(link);
-            } else {
-                document.getElementById("inbox").appendChild(label);
-                document.getElementById("inbox").appendChild(link);
-            }
-        })
+        if (num_annotations[imageId] > 0) {
+          document.getElementById("home").appendChild(label);
+          document.getElementById("home").appendChild(link);
+        } else {
+          document.getElementById("inbox").appendChild(label);
+          document.getElementById("inbox").appendChild(link);
+        }
+      })
     }
 
-    const imageIds = Object.keys(data).sort((a, b) => {
+
+    const render = () => {
+      const search = document.getElementById("search");
+      search.value = query;
+      search.addEventListener("change", e => {
+        window.location = `/?query=${e.target.value}`;
+      })
+
+      const imageIds = Object.keys(db["images"]).sort((a, b) => {
         const _a = a.replace(/[^a-z0-9]/gi,'');
         const _b = b.replace(/[^a-z0-9]/gi,'');
         return _a.localeCompare(_b);
-    });
-    load(imageIds);
+      });
+
+      load(imageIds);
+    }
+
+    const shuffle = document.getElementById("shuffle");
+    shuffle.onclick = () => {
+      home.innerHTML = "";
+      const imageIds = Object.keys(db["images"]).sort(() => Math.random() - 0.5)
+      load(imageIds);
+    }
 </script>
 
