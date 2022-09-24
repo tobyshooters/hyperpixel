@@ -185,8 +185,7 @@ body {
 </script>
 
 <script>
-    const defaultDict = () => new Proxy({}, { get: (d, k) => d[k] || 0 });
-
+    // Reactive data
     const imageId = window.location.pathname.slice(1);
     let db = {}
     let data = {};
@@ -197,12 +196,14 @@ body {
     const send = (msg) => ws.send(JSON.stringify(msg));
 
     ws.onopen = () => {
-      send({op: "subscribe"});
+      send({op: "SUBSCRIBE", path: []});
     }
     
     ws.onmessage = (e) => {
       db = JSON.parse(e.data);
       data = db["images"][imageId];
+      annotations = {};
+      backlinnks = [];
 
       for (const [a_id, annotation] of Object.entries(db["annotations"])) {
         if (annotation["from"] == imageId) {
@@ -216,132 +217,128 @@ body {
       render();
     }
 
-    const render = () => {
-      // References to dom
-      const container = document.getElementById("container");
-      const image = document.getElementById("image");
+    // References to dom
+    const container = document.getElementById("container");
+    const image = document.getElementById("image");
 
-      // Reference to all annotations
-      let notes = [];
-
-      // Change location of image
-      const rename = document.getElementById("rename");
-      rename.value = imageId;
-      rename.onchange = e => {
-        send({
-          op: "RENAME",
-          path: ["images", imageId],
-          data: e.target.value
-        })
-      }
+    let notes = [];
       
-      // Handle resizes
-      window.addEventListener("resize", () => {
-        const r = container.getBoundingClientRect();
-        notes.forEach(n => n.setAnchor(r.width, r.height));
-      })
+    // Resize annotations on window resize
+    window.addEventListener("resize", () => {
+      const r = container.getBoundingClientRect();
+      notes.forEach(n => n.setAnchor(r.width, r.height));
+    })
 
-      // Allow uploading the image through input
-      const loadImage = (blob) => {
-        // Clear annotations; They'll be re-rendered
-        notes.forEach(n => n.delete());
-        notes = [];
+    // Annotation creation via mouse-drag
+    container.addEventListener("mousedown", e => {
+      e.preventDefault();
+      e.stopPropagation();
 
-        // Immediately show image on front-end
-        const fr = new FileReader();
-        fr.onload = () => {
-          image.src = fr.result;
-        }
-        fr.readAsDataURL(blob);
+      const ks = Object.keys(annotations).map(k => parseInt(k));
+      let nextId = (Math.max(...ks) + 1).toString();
 
-        // Persist to back-end so shows up on reload
-        const form = new FormData();
-        form.append('file', blob);
-        form.append('image_id', imageId);
-        fetch("/upload", {
-          method: "POST",
-          body: form,
-        })
-      }
+      const r = e.target.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width;
+      const y = (e.clientY - r.top) / r.height;
 
-      const filepicker = document.getElementById("file");
-      filepicker.onchange = e => {
-        loadImage(e.target.files[0]);
-      }
+      const entry = {x, y, w: 0, h: 0, href: ""}
+      const note = new Annotation(nextId, imageId, entry, r.width, r.height);
+      note.bbox.classList.add("bbox-creation");
+      container.appendChild(note.bbox);
+      notes.push(note);
 
-      // Allow dropping onto container
-      container.addEventListener("dragenter", e => {
-          e.preventDefault();
-          image.style.opacity = 0.5;
-      });
-      container.addEventListener("dragover", e => {
-          e.preventDefault();
-      });
-      container.addEventListener("dragleave", e => {
-          e.preventDefault();
-          image.style.opacity = 1.0;
-      });
-      container.addEventListener("drop", e => {
-          e.preventDefault();
-          image.style.opacity = 1.0;
-          loadImage(e.dataTransfer.files[0])
-      });
-
-      // Allow deleting the image
-      const del = document.getElementById("delete");
-      del.onclick = async () => {
-        send({
-          op: "DELETE",
-          path: ["images", imageId],
-        })
-        window.location = "/";
-      }
-
-      // Annotation creation via mouse-drag
-      const existingIds = Object.keys(annotations || {}).map(k => parseInt(k));
-      let nextId = existingIds.length ?  Math.max(...existingIds) : 0;
-
-      container.addEventListener("mousedown", e => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        nextId += 1;
+      const mousemove = e => {
         const r = e.target.getBoundingClientRect();
-        const x = (e.clientX - r.left) / r.width;
-        const y = (e.clientY - r.top) / r.height;
+        note.setSize(
+          (e.clientX - r.left) / r.width - note.x, 
+          (e.clientY - r.top) / r.height - note.y
+        );
+      }
 
-        const entry = {x, y, w: 0, h: 0, href: ""}
-        const note = new Annotation(nextId, imageId, entry, r.width, r.height);
-        note.bbox.classList.add("bbox-creation");
-        container.appendChild(note.bbox);
-        notes.push(note);
-
-        const mousemove = e => {
-          const r = e.target.getBoundingClientRect();
-          note.setSize(
-            (e.clientX - r.left) / r.width - note.x, 
-            (e.clientY - r.top) / r.height - note.y
-          );
+      const mouseup = e => {
+        if (note.w < 0.05 && note.h < 0.05) {
+          // Ignore bboxes smaller than 5% of image
+          note.bbox.remove();
+        } else {
+          note.bbox.classList.remove("bbox-creation");
+          note.bbox.classList.add("bbox");
         }
+        document.removeEventListener('mousemove', mousemove);
+        document.removeEventListener('mouseup', mouseup);
+      }
 
-        const mouseup = e => {
-          if (note.w < 0.05 && note.h < 0.05) {
-            // Ignore bboxes smaller than 5% of image
-            note.bbox.remove();
-          } else {
-            note.bbox.classList.remove("bbox-creation");
-            note.bbox.classList.add("bbox");
-          }
-          document.removeEventListener('mousemove', mousemove);
-          document.removeEventListener('mouseup', mouseup);
-        }
+      document.addEventListener("mousemove", mousemove);
+      document.addEventListener("mouseup", mouseup);
+    });
 
-        document.addEventListener("mousemove", mousemove);
-        document.addEventListener("mouseup", mouseup);
-      });
+    // Renaming annnotation is persisted
+    const rename = document.getElementById("rename");
+    rename.value = imageId;
+    rename.onchange = e => {
+      send({
+        op: "RENAME",
+        path: ["images", imageId],
+        data: e.target.value
+      })
+    }
 
+    // Allow uploading the image through input or drop
+    const saveImage = (blob) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        image.src = fr.result;
+      }
+      fr.readAsDataURL(blob);
+
+      const form = new FormData();
+      form.append('file', blob);
+      form.append('image_id', imageId);
+      fetch("/upload", {
+        method: "POST",
+        body: form,
+      })
+    }
+
+    const filepicker = document.getElementById("file");
+    filepicker.onchange = e => {
+      saveImage(e.target.files[0]);
+    }
+
+    container.addEventListener("dragenter", e => {
+        e.preventDefault();
+        image.style.opacity = 0.5;
+    });
+    container.addEventListener("dragover", e => {
+        e.preventDefault();
+    });
+    container.addEventListener("dragleave", e => {
+        e.preventDefault();
+        image.style.opacity = 1.0;
+    });
+    container.addEventListener("drop", e => {
+        e.preventDefault();
+        image.style.opacity = 1.0;
+        saveImage(e.dataTransfer.files[0])
+    });
+
+    // Allow deleting the image
+    const del = document.getElementById("delete");
+    del.onclick = async () => {
+      send({
+        op: "DELETE",
+        path: ["images", imageId],
+      })
+      window.location = "/";
+    }
+
+    // Render cycle called when ever there is new data
+    const render = () => {
       if (data) {
         image.onload = () => {
+          // Clear annotations
+          notes.forEach(n => n.delete());
+          notes = [];
+
           // Draw annotations
           const r = container.getBoundingClientRect();
           for (const [a_id, annotation] of Object.entries(annotations)) {

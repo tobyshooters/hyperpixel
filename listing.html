@@ -40,6 +40,7 @@ input {
 <script>
     const defaultDict = () => new Proxy({}, { get: (d, k) => d[k] || 0 });
 
+    // Reactive data flow
     let db = {};
     let num_annotations = defaultDict();
     let query = "";
@@ -48,7 +49,7 @@ input {
     const send = (msg) =>ws.send(JSON.stringify(msg));
 
     ws.onopen = () => {
-      send({"op": "subscribe"});
+      send({op: "SUBSCRIBE", path: []});
     }
     
     ws.onmessage = (e) => {
@@ -87,8 +88,18 @@ input {
       })
     }
 
+    const shuffle = document.getElementById("shuffle");
+    shuffle.onclick = () => {
+      document.getElementById("home").innerHTML = "";
+      document.getElementById("inbox").innerHTML = "";
+      const imageIds = Object.keys(db["images"]).sort(() => Math.random() - 0.5)
+      load(imageIds);
+    }
 
     const render = () => {
+      document.getElementById("home").innerHTML = "";
+      document.getElementById("inbox").innerHTML = "";
+
       const search = document.getElementById("search");
       search.value = query;
       search.addEventListener("change", e => {
@@ -100,14 +111,6 @@ input {
         const _b = b.replace(/[^a-z0-9]/gi,'');
         return _a.localeCompare(_b);
       });
-
-      load(imageIds);
-    }
-
-    const shuffle = document.getElementById("shuffle");
-    shuffle.onclick = () => {
-      home.innerHTML = "";
-      const imageIds = Object.keys(db["images"]).sort(() => Math.random() - 0.5)
       load(imageIds);
     }
 </script>

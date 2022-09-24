@@ -47,6 +47,7 @@ class DB:
     def __init__(self, directory):
         self.directory = directory
         self.path = f"{directory}/db.json"
+        self.callbacks = []
 
         if os.path.exists(self.path):
             with open(self.path, "r") as f:
@@ -104,6 +105,12 @@ class DB:
 
 
     def op(self, op, path, data):
+        print("OP:", op, path, data)
+
+        if op == "SUBSCRIBE":
+            self.callbacks.append(data)
+            data(self.db)
+
         if op == "PUT":
             location = self.db
             for i in range(len(path) - 1):
@@ -126,6 +133,10 @@ class DB:
             old_image_id = path[-1]
             new_image_id = data
             self.rename(old_image_id, new_image_id)
+
+
+        for cb in self.callbacks:
+            cb(self.db)
 
         self.persist()
 
@@ -189,10 +200,12 @@ class WSHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         message = json.loads(message)
 
-        print(message)
+        if message["op"] == "SUBSCRIBE":
+            def cb(db):
+                if self.ws_connection:
+                    self.write_message(json.dumps(db))
 
-        if message["op"] == "subscribe":
-            self.write_message(json.dumps(db.db))
+            db.op("SUBSCRIBE", message["path"], cb)
 
         else:
             data = message["data"] if "data" in message  else None
