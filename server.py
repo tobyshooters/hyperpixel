@@ -3,7 +3,7 @@ import json
 import sys
 import signal
 import subprocess
-import pickle
+import json
 import random
 import copy
 
@@ -44,6 +44,10 @@ db = {
 
 """
 
+def save_db(db):
+    with open(f"{directory}/db.json", "w") as f:
+        json.dump(db, f, indent=2)
+
 def ocr(path):
     path.replace(" ", "\ ")
     cmd = ["tesseract", path, "stdout"]
@@ -70,8 +74,7 @@ def move(db, old, new):
             db[a["href"]]["backlinks"].remove(old)
             db[a["href"]]["backlinks"].append(new)
 
-    with open(f"{directory}/db.pkl", "wb") as f:
-        pickle.dump(db, f)
+    save_db(db)
 
     return db
 
@@ -103,8 +106,7 @@ def hydrate_db():
                 "text": text,
             }
 
-    with open(f"{directory}/db.pkl", "wb") as f:
-        pickle.dump(db, f)
+    save_db(db)
 
 
 @app.route("/files/<filename>")
@@ -184,8 +186,7 @@ def edit(image_id):
             for aId in to_delete:
                 del entry["annotations"][aId]
 
-        with open(f"{directory}/db.pkl", "wb") as f:
-            pickle.dump(db, f)
+        save_db(db)
 
         return "ok"
 
@@ -210,8 +211,7 @@ def edit(image_id):
             db[image_id]["path"] = f.filename
             db[image_id]["text"] = text
 
-        with open(f"{directory}/db.pkl", "wb") as f:
-            pickle.dump(db, f)
+        save_db(db)
 
         return "success", 200
 
@@ -239,8 +239,7 @@ def annotate(image_id, annotation_id):
                     if other_id != image_id
                 ]
 
-    with open(f"{directory}/db.pkl", "wb") as f:
-        pickle.dump(db, f)
+    save_db(db)
 
     return "success", 200
 
@@ -255,9 +254,9 @@ def rename():
 if __name__ == "__main__":
     # Load database
     print(f"Running at {directory}")
-    if os.path.exists(f"{directory}/db.pkl"):
-        with open(f"{directory}/db.pkl", "rb") as f:
-            db = pickle.load(f)
+    if os.path.exists(f"{directory}/db.json"):
+        with open(f"{directory}/db.json", "r") as f:
+            db = json.load(f)
             print(db.keys())
     else:
         db = {}
