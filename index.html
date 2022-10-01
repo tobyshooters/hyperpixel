@@ -1,0 +1,107 @@
+<meta charset="UTF-8">
+
+<style>
+body {
+    margin: 20px 40px;
+}
+a {
+    width: 500px;
+}
+img {
+    width: 500px;
+    height: auto;
+    object-fit: contain;
+    border: 1px solid black;
+    margin-bottom: 11px;
+}
+input {
+    border: 1px solid black;
+    padding: 5px;
+    margin: 0px;
+}
+#home {
+    margin-right: 30px;
+}
+</style>
+
+<a href="./index.html">hyperpixel</a>
+<div style="margin-top: 10px; display: flex; align-items: center;">
+    <input id="search" type="text" placeholder="Search"></input>
+    <button id="shuffle" style="margin-left: 10px;">
+        Shuffle
+    </button>
+</div>
+
+<div id="rows" style="display: flex; flex-direction: row;">
+    <div id="home" style="display: flex; flex-direction: column"></div>
+</div>
+
+<script src="./db.js"></script>
+
+<script>
+    const query = new URLSearchParams(window.location.search).get("query");
+    console.log(query);
+
+    const defaultDict = () => new Proxy({}, { get: (d, k) => d[k] || 0 });
+    let num_annotations = defaultDict();
+
+    for (const annotation of Object.values(db["annotations"])) {
+      num_annotations[annotation["to"]] += 1;
+      num_annotations[annotation["from"]] += 1;
+    }
+
+    const load = (imageIds) => {
+      imageIds.forEach(imageId => {
+        if (query) {
+          const text = db["images"][imageId]["text"].toLowerCase();
+          const q = query.toLowerCase();
+          if (!(imageId.includes(q) || text.includes(q))) {
+            return;
+          }
+        }
+
+        const path = db["images"][imageId]["path"];
+
+        const label = document.createElement("p");
+        label.innerHTML = `/${imageId}`;
+
+        const output = document.createElement("img");
+        output.src = `./files/${path}`;
+
+        const link = document.createElement("a");
+        link.href = `./${imageId}.html`;
+        link.appendChild(output);
+
+        document.getElementById("home").appendChild(label);
+        document.getElementById("home").appendChild(link);
+      })
+    }
+
+    const shuffle = document.getElementById("shuffle");
+    shuffle.onclick = () => {
+      document.getElementById("home").innerHTML = "";
+      const imageIds = Object.keys(db["images"]).sort(() => Math.random() - 0.5)
+      load(imageIds);
+    }
+
+    const render = () => {
+      document.getElementById("home").innerHTML = "";
+
+      const search = document.getElementById("search");
+      search.value = query;
+      search.addEventListener("change", e => {
+        window.location = `./index.html?query=${e.target.value}`;
+      })
+
+      const imageIds = Object.keys(db["images"]).sort((a, b) => {
+        const _a = a.replace(/[^a-z0-9]/gi,'');
+        const _b = b.replace(/[^a-z0-9]/gi,'');
+        return _a.localeCompare(_b);
+      });
+
+      load(imageIds);
+    }
+
+    render();
+</script>
+

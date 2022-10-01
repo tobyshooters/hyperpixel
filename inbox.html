@@ -43,10 +43,10 @@ input {
     // Reactive data flow
     let db = {};
     let num_annotations = defaultDict();
-    let query = "";
+    const query = new URLSearchParams(window.location.search).get("query");
 
     const ws = new WebSocket("ws://localhost:5000/ws")
-    const send = (msg) =>ws.send(JSON.stringify(msg));
+    const send = (msg) => ws.send(JSON.stringify(msg));
 
     ws.onopen = () => {
       send({op: "SUBSCRIBE", path: []});
@@ -66,6 +66,14 @@ input {
 
     const load = (imageIds) => {
       imageIds.forEach(imageId => {
+        if (query) {
+          const text = db["images"][imageId]["text"].toLowerCase();
+          const q = query.toLowerCase();
+          if (!(imageId.includes(q) || text.includes(q))) {
+            return;
+          }
+        }
+
         const path = db["images"][imageId]["path"];
 
         const label = document.createElement("p");

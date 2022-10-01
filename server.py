@@ -171,7 +171,7 @@ db = DB(directory)
 
 class IndexHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("listing.html")
+        self.render("inbox.html")
 
 
 class EditHandler(tornado.web.RequestHandler):
@@ -223,6 +223,7 @@ if __name__ == "__main__":
         }),
         (r'/ws', WSHandler),
         (r'/upload', UploadHandler),
+        (r'/js/(.*)', tornado.web.StaticFileHandler, { "path": "." }),
         (r'/', IndexHandler),
         (r'/(.*)', EditHandler),
     ], debug=True)

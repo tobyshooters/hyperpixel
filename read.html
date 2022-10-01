@@ -1,0 +1,115 @@
+<meta charset="UTF-8">
+
+<style>
+body {
+    margin: 20px 40px;
+}
+#container {
+    position: relative;
+    width: 100%;
+    height: auto;
+    margin-top: 15px;
+}
+#image {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border: 1px solid black;
+}
+#container:hover > .bbox {
+    border: 1px dashed dodgerblue;
+}
+.bbox {
+    position: absolute;
+    background: none;
+    border: 1px dashed black;
+}
+.bbox > * {
+    display: block;
+}
+</style>
+
+<a href="./index.html">hyperpixel</a>
+<div id="home" style="display: flex; flex-direction: column">
+    <div id="container">
+        <img id="image"></img>
+    </div>
+    <div id="backlinks" style="margin-top: 11px">
+    </div>
+    <code id="text" style="margin-top: 11px">
+    </code>
+</div>
+
+<script src="./db.js"></script>
+<script src="./annotation.js"></script>
+
+<script>
+    // Reactive data
+    const imageId = "%imageId%";
+
+    let data = db["images"][imageId];
+    let annotations = {};
+    let backlinks = [];
+
+    for (const [a_id, annotation] of Object.entries(db["annotations"])) {
+      if (annotation["from"] == imageId) {
+        annotations[a_id] = annotation;
+      }
+      if (annotation["to"] == imageId) {
+        backlinks.push(annotation["from"]);
+      }
+    }
+
+    // References to dom
+    const container = document.getElementById("container");
+    const image = document.getElementById("image");
+
+    let notes = [];
+      
+    // Resize annotations on window resize
+    window.addEventListener("resize", () => {
+      const r = container.getBoundingClientRect();
+      notes.forEach(n => n.setAnchor(r.width, r.height));
+    })
+
+    // Render cycle called when ever there is new data
+    const render = () => {
+      if (data) {
+        image.onload = () => {
+          // Clear annotations
+          notes.forEach(n => n.delete());
+          notes = [];
+
+          // Draw annotations
+          const r = container.getBoundingClientRect();
+          for (const [a_id, annotation] of Object.entries(annotations)) {
+            const note = new Annotation(a_id, imageId, annotation, r.width, r.height);
+            note.bbox.classList.add("bbox");
+            container.appendChild(note.bbox);
+            notes.push(note);
+          }
+
+          // Add backlinks
+          const backlinkArea = document.getElementById("backlinks");
+          backlinkArea.innerHTML = "";
+
+          for (const imageId of backlinks) {
+            const backlink = document.createElement("a");
+            backlink.innerHTML = `/${imageId}`;
+            backlink.href = `./${imageId}.html`;
+            backlink.style.marginRight = "11px";
+            backlinkArea.appendChild(backlink);
+          }
+
+          // Add text
+          const text = document.getElementById("text");
+          text.innerHTML = data["text"];
+        }
+
+        const path = data["path"];
+        image.src = `./files/${path}`;
+      }
+    }
+
+    render();
+</script>
