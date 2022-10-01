@@ -1,7 +1,8 @@
 class Annotation {
-  constructor(id, imageId, entry, sw, sh ) {
+  constructor(id, imageId, entry, sw, sh, build) {
     this.id = id;
     this.imageId = imageId;
+    this.build = build;
 
     const { x, y, w, h, to } = entry;
 
@@ -105,7 +106,11 @@ class Annotation {
     if (to.startsWith('http')) {
       this.bbox.href = to;
     } else {
-      this.bbox.href = "./" + to + ".html";
+      if (this.build) {
+        this.bbox.href = "./" + to + ".html";
+      } else{
+        this.bbox.href = "./" + to;
+      }
     }
     this.linkInput.value = to;
   }

@@ -53,6 +53,7 @@ body {
 
     for (const [a_id, annotation] of Object.entries(db["annotations"])) {
       if (annotation["from"] == imageId) {
+        annotation["to"] = annotation["to"];
         annotations[a_id] = annotation;
       }
       if (annotation["to"] == imageId) {
@@ -83,7 +84,9 @@ body {
           // Draw annotations
           const r = container.getBoundingClientRect();
           for (const [a_id, annotation] of Object.entries(annotations)) {
-            const note = new Annotation(a_id, imageId, annotation, r.width, r.height);
+            const note = new Annotation(
+                a_id, imageId, annotation, r.width, r.height, true
+            );
             note.bbox.classList.add("bbox");
             container.appendChild(note.bbox);
             notes.push(note);
