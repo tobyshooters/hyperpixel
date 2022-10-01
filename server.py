@@ -204,8 +204,6 @@ class WSHandler(tornado.websocket.WebSocketHandler):
 
         if message["op"] == "SUBSCRIBE":
             def cb(db):
-                # TODO: subscribe to a subset of the database
-                # TODO: remove callbacks when their connections die
                 if self.ws_connection:
                     self.write_message(json.dumps(db))
 
