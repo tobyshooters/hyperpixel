@@ -31,9 +31,6 @@ body {
     border: 1px dashed black;
 }
 .bbox > * {
-    display: none;
-}
-.bbox:hover > * {
     display: block;
 }
 #header {
@@ -203,7 +200,7 @@ body {
       db = JSON.parse(e.data);
       data = db["images"][imageId];
       annotations = {};
-      backlinnks = [];
+      backlinks = [];
 
       for (const [a_id, annotation] of Object.entries(db["annotations"])) {
         if (annotation["from"] == imageId) {
@@ -234,8 +231,8 @@ body {
       e.preventDefault();
       e.stopPropagation();
 
-      const ks = Object.keys(annotations).map(k => parseInt(k));
-      let nextId = (Math.max(...ks) + 1).toString();
+      const ks = Object.keys(db["annotations"]).map(k => parseInt(k));
+      let nextId = (Math.max(0, ...ks) + 1).toString();
 
       const r = e.target.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width;
@@ -280,6 +277,7 @@ body {
         path: ["images", imageId],
         data: e.target.value
       })
+      window.location = "/" + e.target.value;
     }
 
     // Allow uploading the image through input or drop
@@ -350,6 +348,8 @@ body {
 
           // Add backlinks
           const backlinkArea = document.getElementById("backlinks");
+          backlinkArea.innerHTML = "";
+
           for (const imageId of backlinks) {
             const backlink = document.createElement("a");
             backlink.innerHTML = `/${imageId}`;

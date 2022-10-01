@@ -135,6 +135,8 @@ class DB:
             self.rename(old_image_id, new_image_id)
 
 
+        self.hydrate()
+
         for cb in self.callbacks:
             cb(self.db)
 
