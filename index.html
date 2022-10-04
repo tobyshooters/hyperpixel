@@ -6,6 +6,7 @@ body {
 }
 a {
     width: 500px;
+    color: dodgerblue;
 }
 img {
     width: 500px;
@@ -24,7 +25,7 @@ input {
 }
 </style>
 
-<a href="./index.html">hyperpixel</a>
+<a href="./hyperpixel/index.html">hyperpixel</a>
 <div style="margin-top: 10px; display: flex; align-items: center;">
     <input id="search" type="text" placeholder="Search"></input>
     <button id="shuffle" style="margin-left: 10px;">
@@ -36,7 +37,7 @@ input {
     <div id="home" style="display: flex; flex-direction: column"></div>
 </div>
 
-<script src="./db.js"></script>
+<script src="./hyperpixel/db.js"></script>
 
 <script>
     const query = new URLSearchParams(window.location.search).get("query");
@@ -66,10 +67,10 @@ input {
         label.innerHTML = `/${imageId}`;
 
         const output = document.createElement("img");
-        output.src = `./files/${path}`;
+        output.src = `./hyperpixel/files/${path}`;
 
         const link = document.createElement("a");
-        link.href = `./${imageId}.html`;
+        link.href = `./hyperpixel/${imageId}.html`;
         link.appendChild(output);
 
         document.getElementById("home").appendChild(label);
@@ -90,7 +91,7 @@ input {
       const search = document.getElementById("search");
       search.value = query;
       search.addEventListener("change", e => {
-        window.location = `./index.html?query=${e.target.value}`;
+        window.location = `./hyperpixel/index.html?query=${e.target.value}`;
       })
 
       const imageIds = Object.keys(db["images"]).sort((a, b) => {
