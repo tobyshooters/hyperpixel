@@ -29,7 +29,12 @@ class Annotation {
     this.linkInput = document.createElement("input");
     this.linkInput.type = "text";
     this.linkInput.style.width = "100%";
+
     this.linkInput.addEventListener("change", e => {
+      if (this.build) {
+        return;
+      }
+
       const isInternal = e.target.value[0] === "/";
 
       if (isInternal) {
@@ -65,14 +70,22 @@ class Annotation {
     if (this.to in db["images"]) {
       this.preview = document.createElement("img");
       this.preview.src = "./files/" + db["images"][this.to]["path"];
-      this.preview.style.position = "absolute";
-      this.preview.style.x = 0;
-      this.preview.style.y = 0;
+      this.preview.style.objectFit = "cover";
       this.preview.style.width = this.w * this.sw;
       this.preview.style.height = this.h * this.sh - 24;
-      this.preview.style.objectFit = "cover";
-      this.bbox.appendChild(this.preview);
+    } else {
+      this.preview = document.createElement("iframe");
+      this.preview.src = this.to;
+      this.preview.frameBorder = "0";
+      this.preview.style.transformOrigin = "0 0";
+      this.preview.style.transform = "scale(0.2)";
+      this.preview.style.width = 5 * this.w * this.sw;
+      this.preview.style.height = 5 * (this.h * this.sh - 24);
     }
+    this.preview.style.position = "absolute";
+    this.preview.style.x = 0;
+    this.preview.style.y = 0;
+    this.bbox.appendChild(this.preview);
   }
 
   setAnchor(sw, sh) {
