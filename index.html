@@ -48,7 +48,6 @@ input {
 
 <script>
     const query = new URLSearchParams(window.location.search).get("query");
-    console.log(query);
 
     const defaultDict = () => new Proxy({}, { get: (d, k) => d[k] || 0 });
     let num_annotations = defaultDict();

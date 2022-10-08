@@ -131,7 +131,14 @@ a {
       const y = (e.clientY - r.top) / r.height;
 
       const entry = {x, y, w: 0, h: 0, href: ""}
-      const note = new Annotation(nextId, imageId, entry, r.width, r.height);
+      const note = new Annotation({
+        id: nextId,
+        imageId: imageId,
+        annotation: entry,
+        otherImages: db["images"],
+        sendDB: send
+      });
+      note.setAnchor(r.width, r.height);
       note.bbox.classList.add("bbox-creation");
       container.appendChild(note.bbox);
       notes.push(note);
@@ -231,7 +238,14 @@ a {
           // Draw annotations
           const r = container.getBoundingClientRect();
           for (const [a_id, annotation] of Object.entries(annotations)) {
-            const note = new Annotation(a_id, imageId, annotation, r.width, r.height);
+            const note = new Annotation({
+              id: a_id,
+              imageId: imageId,
+              annotation: annotation,
+              otherImages: db["images"],
+              sendDB: send
+            });
+            note.setAnchor(r.width, r.height);
             note.bbox.classList.add("bbox");
             container.appendChild(note.bbox);
             notes.push(note);
@@ -259,4 +273,3 @@ a {
       }
     }
 </script>
-

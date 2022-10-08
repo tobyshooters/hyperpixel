@@ -1,64 +1,65 @@
 class Annotation {
-  constructor(id, imageId, entry, sw, sh, build) {
+  // NOTE: sendDB is set to null on STATIC builds.
+
+  constructor({id, imageId, annotation, otherImages, sendDB}) {
     this.id = id;
     this.imageId = imageId;
-    this.build = build;
+    this.sendDB = sendDB;
 
-    const { x, y, w, h, to } = entry;
+    const { x, y, w, h, to } = annotation;
 
     this.bbox = document.createElement("a");
     this.setPos(x, y);
     this.setSize(w, h);
-    this.setAnchor(sw, sh);
 
-    this.bbox.addEventListener("click", e => {
-      e.stopPropagation();
-      if (e.shiftKey) {
-        e.preventDefault();
-        if (this.to) {
-          send({
-            op: "DELETE",
-            path: ["annotations", this.id],
-          })
+    if (this.sendDB) {
+      this.bbox.addEventListener("click", e => {
+        e.stopPropagation();
+        if (e.shiftKey) {
+          e.preventDefault();
+          if (this.to) {
+            this.sendDB({
+              op: "DELETE",
+              path: ["annotations", this.id],
+            })
+          }
+          this.bbox.remove();
         }
-        this.bbox.remove();
-      }
-    })
+      })
+    }
     this.bbox.addEventListener("mousedown", e => e.stopPropagation());
 
     this.linkInput = document.createElement("input");
     this.linkInput.type = "text";
     this.linkInput.style.width = "100%";
 
-    this.linkInput.addEventListener("change", e => {
-      if (this.build) {
-        return;
-      }
+    if (this.sendDB) {
+      this.linkInput.addEventListener("change", e => {
+        const isInternal = e.target.value[0] === "/";
 
-      const isInternal = e.target.value[0] === "/";
-
-      if (isInternal) {
-        this.setTo(e.target.value.slice(1));
-      } else {
-        const parts = e.target.value.match(/(https?:\/\/)(.*)/)
-        const href = parts ? parts[0] : "https://" + e.target.value;
-        this.setTo(href);
-      }
-
-      send({
-        op: "PUT",
-        path: ["annotations", this.id],
-        data: {
-          type: isInternal ? "internal" : "external",
-          from: this.imageId,
-          to: this.to,
-          x: this.x,
-          y: this.y,
-          w: this.w,
-          h: this.h
+        if (isInternal) {
+          this.setTo(e.target.value.slice(1));
+        } else {
+          const parts = e.target.value.match(/(https?:\/\/)(.*)/)
+          const href = parts ? parts[0] : "https://" + e.target.value;
+          this.setTo(href);
         }
-      })
-    });
+
+        this.sendDB({
+          op: "PUT",
+          path: ["annotations", this.id],
+          data: {
+            type: isInternal ? "internal" : "external",
+            from: this.imageId,
+            to: this.to,
+            x: this.x,
+            y: this.y,
+            w: this.w,
+            h: this.h
+          }
+        })
+      });
+    }
 
     this.linkInput.addEventListener("click", e => e.preventDefault());
     this.linkInput.addEventListener("mouseup", e => e.stopPropagation());
@@ -67,10 +68,11 @@ class Annotation {
 
     this.setTo(to || "");
 
-    if (this.to in db["images"]) {
+    if (this.to in otherImages) {
       this.preview = document.createElement("img");
-      console.log("HERE")
-      this.preview.src = "./files/" + db["images"][this.to]["path"];
+      this.previewType = "image";
+
+      this.preview.src = "./files/" + otherImages[this.to]["path"];
       this.preview.style.position = "absolute";
       this.preview.style.x = 0;
       this.preview.style.y = 0;
@@ -78,8 +80,11 @@ class Annotation {
       this.preview.style.width = this.w * this.sw;
       this.preview.style.height = this.h * this.sh - 24;
       this.bbox.appendChild(this.preview);
+
     } else if (this.to.startsWith("http")) {
       this.preview = document.createElement("iframe");
+      this.previewType = "iframe";
+
       this.preview.src = this.to;
       this.preview.style.position = "absolute";
       this.preview.style.x = 0;
@@ -113,9 +118,12 @@ class Annotation {
     this.bbox.style.width = (this.w * this.sw) + "px";
     this.bbox.style.height = (this.h * this.sh) + "px";
 
-    if (this.preview) {
+    if (this.previewType === "image") {
       this.preview.style.width = this.w * this.sw;
       this.preview.style.height = this.h * this.sh - 24;
+    } else if (this.previewType === "iframe") {
+      this.preview.style.width = 5 * this.w * this.sw;
+      this.preview.style.height = 5 * (this.h * this.sh - 24);
     }
   }
 
@@ -124,10 +132,10 @@ class Annotation {
     if (to.startsWith('http')) {
       this.bbox.href = to;
     } else {
-      if (this.build) {
-        this.bbox.href = "./" + to + ".html";
-      } else{
+      if (this.sendDB) {
         this.bbox.href = "./" + to;
+      } else{
+        this.bbox.href = "./" + to + ".html";
       }
     }
     this.linkInput.value = to;

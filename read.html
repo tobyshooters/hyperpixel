@@ -96,9 +96,14 @@ a {
           // Draw annotations
           const r = container.getBoundingClientRect();
           for (const [a_id, annotation] of Object.entries(annotations)) {
-            const note = new Annotation(
-                a_id, imageId, annotation, r.width, r.height, true
-            );
+            const note = new Annotation({
+              id: a_id,
+              imageId: imageId,
+              annotation: annotation,
+              otherImages: db["images"],
+              sendDB: null
+            });
+            note.setAnchor(r.width, r.height);
             note.bbox.classList.add("bbox");
             container.appendChild(note.bbox);
             notes.push(note);
