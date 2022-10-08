@@ -1,6 +1,0 @@
-# hyperpixel
-Everything is an image.
-
-Install:
-- Pip: `flask`,`pillow`
-- Brew/Apt: `tesseract-ocr`

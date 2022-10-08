@@ -20,7 +20,9 @@ a {
     border: 1px solid black;
 }
 #container:hover > .bbox {
-    border: 1px dashed dodgerblue;
+    transform: translate(-1px, -1px);
+    border: 2px dashed dodgerblue;
+    border-radius: 2px;
 }
 .bbox {
     position: absolute;
@@ -30,9 +32,16 @@ a {
 .bbox > * {
     display: block;
 }
+#header {
+    display: flex;
+    justify-content: space-between;
+}
 </style>
 
-<a href="./index.html">hyperpixel</a>
+<div id="header">
+    <a href="./hyperpixel/index.html">hyperpixel</a>
+    <a style="text-align: right" href="https://github.com/tobyshooters/hyperpixel">make your own</a>
+</div>
 <div id="home" style="display: flex; flex-direction: column">
     <div id="container">
         <img id="image"></img>

@@ -69,23 +69,28 @@ class Annotation {
 
     if (this.to in db["images"]) {
       this.preview = document.createElement("img");
+      console.log("HERE")
       this.preview.src = "./files/" + db["images"][this.to]["path"];
+      this.preview.style.position = "absolute";
+      this.preview.style.x = 0;
+      this.preview.style.y = 0;
       this.preview.style.objectFit = "cover";
       this.preview.style.width = this.w * this.sw;
       this.preview.style.height = this.h * this.sh - 24;
-    } else {
+      this.bbox.appendChild(this.preview);
+    } else if (this.to.startsWith("http")) {
       this.preview = document.createElement("iframe");
       this.preview.src = this.to;
+      this.preview.style.position = "absolute";
+      this.preview.style.x = 0;
+      this.preview.style.y = 0;
       this.preview.frameBorder = "0";
       this.preview.style.transformOrigin = "0 0";
       this.preview.style.transform = "scale(0.2)";
       this.preview.style.width = 5 * this.w * this.sw;
       this.preview.style.height = 5 * (this.h * this.sh - 24);
+      this.bbox.appendChild(this.preview);
     }
-    this.preview.style.position = "absolute";
-    this.preview.style.x = 0;
-    this.preview.style.y = 0;
-    this.bbox.appendChild(this.preview);
   }
 
   setAnchor(sw, sh) {
