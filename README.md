@@ -1,6 +1,6 @@
 ## hyperpixel
 
-![Preview of system](static/preview.png?raw=true "Title")
+![Preview of system](static/preview.png)
 
 Text dominates the software experience. Visual aesthetics are so difficult to
 program in the web, that commodity blogging templates have come to dominate.
