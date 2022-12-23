@@ -46,7 +46,7 @@ input {
     let num_annotations = defaultDict();
     const query = new URLSearchParams(window.location.search).get("query");
 
-    const ws = new WebSocket("ws://localhost:5000/ws")
+    const ws = new WebSocket("ws://localhost:1234/ws")
     const send = (msg) => ws.send(JSON.stringify(msg));
 
     ws.onopen = () => {

@@ -44,7 +44,7 @@ input {
     <div id="home" style="display: flex; flex-direction: column"></div>
 </div>
 
-<script src="./hyperpixel/db.js"></script>
+<script src="./db.js"></script>
 
 <script>
     const query = new URLSearchParams(window.location.search).get("query");
@@ -73,10 +73,10 @@ input {
         label.innerHTML = `/${imageId}`;
 
         const output = document.createElement("img");
-        output.src = `./hyperpixel/files/${path}`;
+        output.src = `./files/${path}`;
 
         const link = document.createElement("a");
-        link.href = `./hyperpixel/${imageId}.html`;
+        link.href = `./${imageId}.html`;
         link.appendChild(output);
 
         document.getElementById("home").appendChild(label);
@@ -97,7 +97,7 @@ input {
       const search = document.getElementById("search");
       search.value = query;
       search.addEventListener("change", e => {
-        window.location = `./hyperpixel/index.html?query=${e.target.value}`;
+        window.location = `./index.html?query=${e.target.value}`;
       })
 
       const imageIds = Object.keys(db["images"]).sort((a, b) => {

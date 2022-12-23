@@ -81,12 +81,11 @@ a {
     let annotations = {};
     let backlinks = [];
 
-    const ws = new WebSocket("ws://localhost:5000/ws")
+    const ws = new WebSocket("ws://localhost:1234/ws")
     const send = (msg) => ws.send(JSON.stringify(msg));
+    window.send = send;
 
-    ws.onopen = () => {
-      send({op: "SUBSCRIBE", path: []});
-    }
+    ws.onopen = () => send({op: "SUBSCRIBE", path: []});
     
     ws.onmessage = (e) => {
       db = JSON.parse(e.data);

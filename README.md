@@ -19,19 +19,15 @@ navigation and individual image editing interfaces.
 
 ### publishing
 
-For publishing, `index.html` and `read.html` are equivalent. This allows for a
-read-only static build which can be uploaded to a personal server.
-
-The creation of the static build is done with: `python3 publish.py <directory>`
-
-This secondary code path is quite messy at the moment and has some hard-coded
-paths for my own deployment to a blog. Please contact me if you want to figure
-that out.
-
-For e.g. I run:
 ```
-cd ~/dev/hyperpixels
-python3 publish.py ~/dev/hyperpixel-blog
-cp -r build ~/dev/blog/hyperpixel
+cd publish
+python3 publish.py <directory>
+cd build
+python3 -m http.server
+open localhost:8000
 ```
 
+The creation of the static build is done with: `python3 publish.py
+<directory>`. For publishing, `index.template` and `read.template` are roughly
+equivalent to `inbox` and `edit`, with editing functionality stripped out. This
+allows for a read-only static build which can be uploaded to a personal server.

@@ -13,8 +13,8 @@ if os.path.exists("build"):
 os.mkdir("build")
 os.mkdir("build/files")
 
-os.system("cp index.html build/index.html")
-os.system("cp annotation.js build/annotation.js")
+os.system("cp index.template build/index.html")
+os.system("cp ../annotation.js build/annotation.js")
 
 with open("build/db.js", "w") as db_f:
     db_f.write("const db = ");
@@ -27,9 +27,9 @@ for image_id, data in db["images"].items():
     src = f"{sys.argv[1]}/{data['path']}".replace(" ", "\ ")
     os.system(f"cp {src} build/files")
 
-    # Copy read.html template
+    # Copy read template
     target = f"build/{image_id}.html"
-    os.system(f"cp read.html {target}")
+    os.system(f"cp read.template {target}")
 
     # Splice in the image_id
     os.system(f'sed s/%imageId%/{image_id}/ {target} > tmp.html')

@@ -3,3 +3,4 @@ static
 **/.DS_Store
 *.pem
 build
+publish/build
